@@ -1,0 +1,125 @@
+/* ============================================================
+   Design tokens
+   Light theme with a blue accent - revised after direct feedback
+   preferring the old Streamlit dashboard's palette over an initial
+   bronze/gold direction. Background is a cool light blue-gray
+   rather than warm cream, matching that reference. Status colors
+   still match services/position_signal.py exactly (the old
+   dashboard's "Hold & Decay" badge was already purple, confirming
+   this mapping was right all along - only the primary accent and
+   overall polish needed to change).
+   ============================================================ */
+:root {
+  /* Surfaces */
+  --bg: #f7f9fc;
+  --bg-elevated: #ffffff;
+  --bg-card: #ffffff;
+  --border: #e5e9f0;
+  --border-subtle: #eef1f6;
+
+  /* Text */
+  --text-primary: #1a1d29;
+  --text-secondary: #64748b;
+  --text-tertiary: #94a3b8;
+
+  /* Accent - blue, matching the reference dashboard's radio/selection color */
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-dim: #93b4f5;
+
+  /* Status colors - match position_signal.py, same hues the old
+     dashboard already used (its "Hold & Decay" badge was purple) */
+  --status-take-profit: #16a34a;
+  --status-take-profit-bg: rgba(22, 163, 74, 0.1);
+  --status-roll-hold: #9333ea;
+  --status-roll-hold-bg: rgba(147, 51, 234, 0.1);
+  --status-assignment: #2563eb;
+  --status-assignment-bg: rgba(37, 99, 235, 0.1);
+
+  /* P&L semantics */
+  --positive: #16a34a;
+  --negative: #dc2626;
+
+  /* Trade signal */
+  --signal-trade: #16a34a;
+  --signal-wait: #64748b;
+
+  /* Type */
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --font-sans: 'IBM Plex Sans', -apple-system, sans-serif;
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  --radius: 10px;
+  --radius-sm: 6px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Tabular numerals everywhere financial data appears - decimals
+   need to actually align in a data-dense dashboard like this. */
+.num, .num * {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--accent-hover);
+}
+
+button {
+  font-family: var(--font-sans);
+  cursor: pointer;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+input, select {
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

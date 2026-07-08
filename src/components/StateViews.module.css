@@ -1,0 +1,24 @@
+.state {
+  padding: var(--space-7) var(--space-5);
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.error {
+  color: var(--negative);
+}
+
+.retryButton {
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.retryButton:hover {
+  border-color: var(--accent);
+}

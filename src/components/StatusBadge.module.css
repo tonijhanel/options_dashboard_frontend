@@ -1,0 +1,24 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-3);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.take-profit {
+  color: var(--status-take-profit);
+  background: var(--status-take-profit-bg);
+}
+
+.roll-hold {
+  color: var(--status-roll-hold);
+  background: var(--status-roll-hold-bg);
+}
+
+.assignment {
+  color: var(--status-assignment);
+  background: var(--status-assignment-bg);
+}

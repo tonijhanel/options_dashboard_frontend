@@ -1,0 +1,46 @@
+.ticker {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.filterRow {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.filter, .filterActive {
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.filterActive {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+
+.filter:hover {
+  border-color: var(--accent-dim);
+  color: var(--text-primary);
+}
+
+.errorsNote {
+  margin-top: var(--space-5);
+  padding: var(--space-4) var(--space-5);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.errorsNote ul {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-5);
+}

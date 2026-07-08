@@ -1,0 +1,23 @@
+.ticker {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.excludedNote {
+  margin-top: var(--space-5);
+  padding: var(--space-4) var(--space-5);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.excludedNote ul {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-5);
+}
+
+.excludedNote li {
+  margin-bottom: var(--space-1);
+}
