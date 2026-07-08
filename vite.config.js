@@ -21,7 +21,16 @@ const jsxInJsRollupPlugin = (matchers) => ({
   load(id) {
     if (matchers.some((matcher) => matcher.test(id))) {
       const file = fs.readFileSync(id, { encoding: 'utf-8' });
-      return esbuild.transformSync(file, { loader: 'jsx' });
+      // jsx: 'automatic' is critical here - without it, esbuild defaults
+      // to the classic transform (compiles <App/> into
+      // React.createElement(App), which requires React to be explicitly
+      // imported in every file). None of our components import React
+      // directly - they rely on the modern automatic runtime, same as
+      // @vitejs/plugin-react uses everywhere else in this project. Without
+      // this, the production bundle throws "ReferenceError: React is not
+      // defined" at runtime, since the compiled code references a global
+      // that was never imported.
+      return esbuild.transformSync(file, { loader: 'jsx', jsx: 'automatic' });
     }
   },
 });
@@ -41,6 +50,7 @@ export default defineConfig({
   },
   esbuild: {
     loader: 'jsx',
+    jsx: 'automatic',
     include: /src\/.*\.js$/,
     exclude: [],
   },
