@@ -74,3 +74,22 @@ export function getNewsSentiment() {
 export function hardRefreshNewsSentiment() {
   return request('/news-sentiment/refresh', { method: 'POST' });
 }
+
+/** status: 'open' (default), 'closed', or 'all' */
+export function getPositionLog(status = 'open') {
+  return request(`/position-log?status=${status}`);
+}
+
+export function createPositionLogEntry(payload) {
+  return request('/position-log', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updatePositionLogEntry(id, payload) {
+  return request(`/position-log/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}

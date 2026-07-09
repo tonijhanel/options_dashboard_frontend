@@ -5,8 +5,9 @@ const LINKS = [
   { to: '/', label: 'Positions' },
   { to: '/portfolio-overview', label: 'Portfolio Overview' },
   { to: '/news-sentiment', label: 'News & Sentiment' },
-  { to: '/tsp-scan', label: 'TSP Scan' },
-  { to: '/csp-scan', label: 'CSP Scan' },
+  { to: '/position-log', label: 'Position Log' },
+  { to: '/tsp-scan', label: 'Bulk Scan' },
+  { to: '/csp-scan', label: 'Single Position Scan' },
 ];
 
 export default function Nav() {
