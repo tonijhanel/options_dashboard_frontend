@@ -158,13 +158,13 @@ export default function CspScanPage() {
                     <th>Volume</th>
                     <th>Ann. Yield</th>
                     <th>Signal</th>
+                    <th>Reason</th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.candidates.map((c, i) => (
                     <tr
                       key={`${c.expiration_date}-${c.strike}-${i}`}
-                      title={c.trade_signal_reason}
                       className={c.is_liquid === false ? styles.illiquidRow : ''}
                     >
                       <td>{c.expiration_date}</td>
@@ -181,6 +181,7 @@ export default function CspScanPage() {
                       <td>
                         <TradeSignalBadge signal={c.trade_signal} />
                       </td>
+                      <td className={styles.reasonCell}>{c.trade_signal_reason}</td>
                     </tr>
                   ))}
                 </tbody>

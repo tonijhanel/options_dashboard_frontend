@@ -47,9 +47,11 @@ const COLUMNS = [
     render: (p) => p.recommended_contracts },
   { key: 'trade_signal', label: 'Signal', sortable: true, getSortValue: (p) => p.trade_signal,
     render: (p) => <TradeSignalBadge signal={p.trade_signal} /> },
+  { key: 'trade_signal_reason', label: 'Reason', sortable: true, getSortValue: (p) => p.trade_signal_reason || '',
+    render: (p) => p.trade_signal_reason },
 ];
 
-const NON_NUMERIC_COLUMNS = ['sector', 'roc_tier', 'trade_signal', 'group'];
+const NON_NUMERIC_COLUMNS = ['sector', 'roc_tier', 'trade_signal', 'trade_signal_reason', 'group'];
 
 export default function TspScanPage() {
   const { data, error, loading, refetch } = useApiData(getTspPortfolio, 'tsp-portfolio');
@@ -128,9 +130,16 @@ export default function TspScanPage() {
             </thead>
             <tbody>
               {sorted.map((p) => (
-                <tr key={p.ticker} title={p.trade_signal_reason}>
+                <tr key={p.ticker}>
                   {visibleColumns.map((col) => (
-                    <td key={col.key} className={NON_NUMERIC_COLUMNS.includes(col.key) ? '' : 'num'}>
+                    <td
+                      key={col.key}
+                      className={
+                        col.key === 'trade_signal_reason'
+                          ? tableStyles.wrapCell
+                          : NON_NUMERIC_COLUMNS.includes(col.key) ? '' : 'num'
+                      }
+                    >
                       {col.render(p)}
                     </td>
                   ))}

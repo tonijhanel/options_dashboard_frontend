@@ -48,3 +48,8 @@
 .muted {
   color: var(--text-tertiary);
 }
+
+.table td.wrapCell {
+  white-space: normal;
+  max-width: 320px;
+}
