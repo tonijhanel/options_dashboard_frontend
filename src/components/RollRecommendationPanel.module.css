@@ -1,0 +1,57 @@
+.panel {
+  padding: var(--space-5);
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 var(--space-2);
+}
+
+.meta {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.instruction {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  font-size: 13px;
+  margin-bottom: var(--space-4);
+}
+
+.instruction.positive { color: var(--status-take-profit); background: var(--status-take-profit-bg); }
+.instruction.warning { color: var(--accent); background: rgba(37, 99, 235, 0.08); }
+.instruction.negative { color: var(--negative); background: rgba(220, 38, 38, 0.08); }
+
+.body {
+  font-size: 14px;
+  color: var(--text-primary);
+  margin: 0 0 var(--space-4);
+}
+
+.subheading {
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: var(--space-2);
+}
+
+.steps {
+  margin: 0 0 var(--space-4);
+  padding-left: var(--space-5);
+  font-size: 14px;
+}
+
+.plan {
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+  font-size: 13px;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}

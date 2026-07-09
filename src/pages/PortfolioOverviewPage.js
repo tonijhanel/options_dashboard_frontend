@@ -1,0 +1,105 @@
+import { useState, useMemo } from 'react';
+import { getPositions } from '../api/client';
+import { useApiData } from '../lib/useApiData';
+import { computeCushionPct, computeAssignmentProbPct, assignmentRiskTone } from '../lib/positionRisk';
+import { generatePortfolioInsights } from '../lib/portfolioInsights';
+import { LoadingView, ErrorView, EmptyView } from '../components/StateViews';
+import PageHeader from '../components/PageHeader';
+import SectorDonut from '../components/SectorDonut';
+import CushionBar from '../components/CushionBar';
+import InsightsList from '../components/InsightsList';
+import styles from './PortfolioOverviewPage.module.css';
+
+const SECTOR_METRICS = {
+  premium: {
+    label: 'Premium Value',
+    description: 'Current market value of the options themselves',
+    // matches dashboard.py's sector donut exactly
+    getValue: (p) => Math.abs(p.contracts) * Math.abs(p.mid) * 100,
+  },
+  collateral: {
+    label: 'Capital Allocation',
+    description: 'Collateral required per sector - how much buying power is actually locked up',
+    getValue: (p) => Math.abs(p.contracts) * Math.abs(p.strike) * 100,
+  },
+};
+
+export default function PortfolioOverviewPage() {
+  const { data, error, loading, refetch } = useApiData(getPositions, 'positions');
+  const [metric, setMetric] = useState('premium');
+
+  const sectorData = useMemo(() => {
+    if (!data?.positions) return [];
+    const getValue = SECTOR_METRICS[metric].getValue;
+    const bySector = {};
+    for (const p of data.positions) {
+      const sector = p.sector || 'Untracked';
+      bySector[sector] = (bySector[sector] || 0) + getValue(p);
+    }
+    return Object.entries(bySector).map(([name, value]) => ({ name, value }));
+  }, [data, metric]);
+
+  const insights = useMemo(() => {
+    if (!data?.positions) return [];
+    return generatePortfolioInsights(data.positions);
+  }, [data]);
+
+  if (loading && !data) return <LoadingView label="Loading portfolio overview" />;
+  if (error && !data) return <ErrorView message={error} onRetry={refetch} />;
+  if (!data) return null;
+
+  const positions = data.positions || [];
+
+  return (
+    <div>
+      <PageHeader title="Portfolio Overview" onRefresh={refetch} refreshing={loading} />
+
+      {error && <ErrorView message={error} onRetry={refetch} />}
+
+      {positions.length === 0 ? (
+        <EmptyView message="No open positions to summarize yet." />
+      ) : (
+        <>
+          <section className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <h2 className={styles.sectionTitle}>Portfolio Sector Concentration</h2>
+              <div className={styles.metricToggle}>
+                {Object.entries(SECTOR_METRICS).map(([key, m]) => (
+                  <button
+                    key={key}
+                    className={metric === key ? styles.toggleActive : styles.toggle}
+                    onClick={() => setMetric(key)}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p className={styles.metricDescription}>{SECTOR_METRICS[metric].description}</p>
+            <SectorDonut data={sectorData} />
+          </section>
+
+          <section className={styles.section}>
+            <h2 className={styles.sectionTitle}>Downside Safety Cushions &amp; Assignment Risk</h2>
+            {positions.map((p, i) => (
+              <CushionBar
+                key={`${p.ticker}-${p.strike}-${i}`}
+                ticker={p.ticker}
+                strike={p.strike}
+                spot={p.spot}
+                cushionPct={computeCushionPct(p.spot, p.strike)}
+                assignmentProbPct={computeAssignmentProbPct(p.spot, p.strike, p.dte, p.iv)}
+                tone={assignmentRiskTone(computeAssignmentProbPct(p.spot, p.strike, p.dte, p.iv))}
+              />
+            ))}
+          </section>
+
+          <section className={styles.section}>
+            <h2 className={styles.sectionTitle}>Portfolio Insights</h2>
+            <InsightsList insights={insights} />
+          </section>
+        </>
+      )}
+    </div>
+  );
+}

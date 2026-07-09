@@ -3,8 +3,9 @@ import styles from './Nav.module.css';
 
 const LINKS = [
   { to: '/', label: 'Positions' },
-  { to: '/tsp-scan', label: 'TSP Scan' },
-  { to: '/csp-scan', label: 'CSP Scan' },
+  { to: '/portfolio-overview', label: 'Portfolio Overview' },
+  { to: '/tsp-scan', label: 'Bulk CSP Scan' },
+  { to: '/csp-scan', label: 'Single CSP Scan' },
 ];
 
 export default function Nav() {

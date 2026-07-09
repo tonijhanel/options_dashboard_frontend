@@ -1,0 +1,64 @@
+.row {
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: var(--space-2);
+}
+
+.ticker {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.meta {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.barLabel {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-1);
+}
+
+.barTrack {
+  height: 8px;
+  background: var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: var(--space-2);
+}
+
+.barFill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+}
+
+.assignmentLine {
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.positive .dot { background: var(--status-take-profit); }
+.warning .dot { background: var(--accent); }
+.negative .dot { background: var(--negative); }
