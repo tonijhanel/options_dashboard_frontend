@@ -1,0 +1,105 @@
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.refreshButton {
+  padding: var(--space-2) var(--space-4);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.refreshButton:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.hardRefreshButton {
+  padding: var(--space-2) var(--space-4);
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  border-radius: var(--radius-sm);
+  color: var(--negative);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.hardRefreshButton:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.14);
+}
+
+.refreshButton:disabled, .hardRefreshButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.explainer {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin: 0 0 var(--space-4);
+  max-width: 720px;
+}
+
+.confirmBox {
+  padding: var(--space-4) var(--space-5);
+  background: rgba(220, 38, 38, 0.06);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  border-radius: var(--radius);
+  margin-bottom: var(--space-4);
+  font-size: 13px;
+}
+
+.confirmBox p {
+  margin: 0 0 var(--space-3);
+}
+
+.confirmActions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.confirmYes {
+  padding: var(--space-2) var(--space-4);
+  background: var(--negative);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.confirmNo {
+  padding: var(--space-2) var(--space-4);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.section {
+  margin-bottom: var(--space-6);
+}
+
+.sectionTitle {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 var(--space-4);
+}

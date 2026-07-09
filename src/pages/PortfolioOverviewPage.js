@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { getPositions } from '../api/client';
 import { useApiData } from '../lib/useApiData';
 import { computeCushionPct, computeAssignmentProbPct, assignmentRiskTone } from '../lib/positionRisk';
+import { useNewsSentiment } from '../lib/useNewsSentiment';
 import { generatePortfolioInsights } from '../lib/portfolioInsights';
 import { LoadingView, ErrorView, EmptyView } from '../components/StateViews';
 import PageHeader from '../components/PageHeader';
@@ -26,6 +27,7 @@ const SECTOR_METRICS = {
 
 export default function PortfolioOverviewPage() {
   const { data, error, loading, refetch } = useApiData(getPositions, 'positions');
+  const { getEntry: getNewsEntry } = useNewsSentiment();
   const [metric, setMetric] = useState('premium');
 
   const sectorData = useMemo(() => {
@@ -90,6 +92,7 @@ export default function PortfolioOverviewPage() {
                 cushionPct={computeCushionPct(p.spot, p.strike)}
                 assignmentProbPct={computeAssignmentProbPct(p.spot, p.strike, p.dte, p.iv)}
                 tone={assignmentRiskTone(computeAssignmentProbPct(p.spot, p.strike, p.dte, p.iv))}
+                getNewsEntry={getNewsEntry}
               />
             ))}
           </section>

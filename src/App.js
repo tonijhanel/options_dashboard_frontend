@@ -4,6 +4,7 @@ import PositionsPage from './pages/PositionsPage';
 import TspScanPage from './pages/TspScanPage';
 import CspScanPage from './pages/CspScanPage';
 import PortfolioOverviewPage from './pages/PortfolioOverviewPage';
+import NewsSentimentPage from './pages/NewsSentimentPage';
 import styles from './App.module.css';
 
 export default function App() {
@@ -16,6 +17,7 @@ export default function App() {
           <Route path="/tsp-scan" element={<TspScanPage />} />
           <Route path="/csp-scan" element={<CspScanPage />} />
           <Route path="/portfolio-overview" element={<PortfolioOverviewPage />} />
+          <Route path="/news-sentiment" element={<NewsSentimentPage />} />
         </Routes>
       </main>
     </BrowserRouter>

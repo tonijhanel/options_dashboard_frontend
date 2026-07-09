@@ -15,6 +15,8 @@ import RecommendationBadge from '../components/RecommendationBadge';
 import RollRecommendationPanel from '../components/RollRecommendationPanel';
 import RiskCurveChart from '../components/RiskCurveChart';
 import PageHeader from '../components/PageHeader';
+import NewsPreview from '../components/NewsPreview';
+import { useNewsSentiment } from '../lib/useNewsSentiment';
 import SortableHeader from '../components/SortableHeader';
 import ColumnPicker, { useColumnVisibility } from '../components/ColumnPicker';
 import tableStyles from '../components/Table.module.css';
@@ -68,7 +70,7 @@ const COLUMNS = [
       const roc = computeROC(p.entry_price, p.strike);
       return roc !== null ? `${roc.toFixed(2)}%` : '—';
     } },
-  { key: 'annualized_roc', label: 'Annual ROC', sortable: true,
+  { key: 'annualized_roc', label: 'Annualized ROC', sortable: true,
     getSortValue: (p) => computeAnnualizedROC(computeROC(p.entry_price, p.strike), p.dte),
     render: (p) => {
       const roc = computeAnnualizedROC(computeROC(p.entry_price, p.strike), p.dte);
@@ -94,6 +96,7 @@ export default function PositionsPage() {
   const [profitTarget, setProfitTarget] = useState(80);
   const [selectedKey, setSelectedKey] = useState(null);
   const { data, error, loading, refetch } = useApiData(getPositions, 'positions');
+  const { getEntry: getNewsEntry } = useNewsSentiment();
 
   const positionsWithStatus = useMemo(() => {
     if (!data?.positions) return [];
@@ -223,7 +226,13 @@ export default function PositionsPage() {
                     <tr key={`${key}-${i}`} className={styles.clickableRow} onClick={() => setSelectedKey(key)}>
                       {visibleColumns.map((col) => (
                         <td key={col.key} className={['status', 'recommendation', 'sector', 'roc_tier'].includes(col.key) ? '' : 'num'}>
-                          {col.render(p)}
+                          {col.key === 'ticker' ? (
+                            <NewsPreview scope="ticker" scopeKey={p.ticker} getEntry={getNewsEntry}>
+                              {col.render(p)}
+                            </NewsPreview>
+                          ) : (
+                            col.render(p)
+                          )}
                         </td>
                       ))}
                     </tr>

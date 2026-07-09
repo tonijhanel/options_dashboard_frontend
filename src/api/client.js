@@ -61,3 +61,16 @@ export function getCspScan(ticker, { minDelta, maxDelta, minDte, maxDte, include
   const qs = params.toString();
   return request(`/csp-scan/${encodeURIComponent(ticker)}${qs ? `?${qs}` : ''}`);
 }
+
+/** Free - just reads whatever the backend's scheduled job (or a previous
+ * hard refresh) last stored. No Alpha Vantage cost. */
+export function getNewsSentiment() {
+  return request('/news-sentiment');
+}
+
+/** Costs real Alpha Vantage quota (25/day free tier) - triggers a brand
+ * new fetch+analysis cycle rather than reading what's already stored.
+ * Keep this behind a clearly-separate, deliberate action in the UI. */
+export function hardRefreshNewsSentiment() {
+  return request('/news-sentiment/refresh', { method: 'POST' });
+}
