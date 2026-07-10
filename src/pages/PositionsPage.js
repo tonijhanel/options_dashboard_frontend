@@ -96,7 +96,7 @@ export default function PositionsPage() {
   const [profitTarget, setProfitTarget] = useState(80);
   const [selectedKey, setSelectedKey] = useState(null);
   const { data, error, loading, refetch } = useApiData(getPositions, 'positions');
-  const { data: realizedPnl } = useApiData(getRealizedPnl, 'realized-pnl');
+  const { data: realizedPnl, refetch: refetchRealizedPnl } = useApiData(getRealizedPnl, 'realized-pnl');
   const { getEntry: getNewsEntry } = useNewsSentiment();
 
   const positionsWithStatus = useMemo(() => {
@@ -155,7 +155,14 @@ export default function PositionsPage() {
 
   return (
     <div>
-      <PageHeader title="Positions" onRefresh={refetch} refreshing={loading} />
+      <PageHeader
+        title="Positions"
+        onRefresh={() => {
+          refetch();
+          refetchRealizedPnl();
+        }}
+        refreshing={loading}
+      />
 
       {error && <ErrorView message={error} onRetry={refetch} />}
 
