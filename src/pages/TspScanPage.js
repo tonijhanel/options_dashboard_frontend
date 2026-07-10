@@ -56,7 +56,15 @@ const NON_NUMERIC_COLUMNS = ['sector', 'roc_tier', 'trade_signal', 'trade_signal
 export default function TspScanPage() {
   const { data, error, loading, refetch } = useApiData(getTspPortfolio, 'tsp-portfolio');
   const [signalFilter, setSignalFilter] = useState('ALL');
-  const { hidden, toggle, visibleColumns } = useColumnVisibility(COLUMNS, 'tspScanTable');
+  // Sensible first-time defaults - Group/Sector are internal
+  // classification rather than decision-relevant, actual_delta is
+  // usually close to the config target anyway, and monthly_yield_pct is
+  // redundant once annualized_yield_pct is visible (that's the number
+  // that actually feeds the trade decision). Only applies the very first
+  // time; any customization afterward always wins.
+  const { hidden, toggle, visibleColumns } = useColumnVisibility(COLUMNS, 'tspScanTable', [
+    'group', 'sector', 'actual_delta', 'monthly_yield_pct',
+  ]);
 
   const portfolio = data?.portfolio || [];
   const filtered = signalFilter === 'ALL' ? portfolio : portfolio.filter((p) => p.trade_signal === signalFilter);

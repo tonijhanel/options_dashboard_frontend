@@ -108,7 +108,15 @@ export default function PositionsPage() {
     }));
   }, [data, profitTarget]);
 
-  const { hidden, toggle, visibleColumns } = useColumnVisibility(COLUMNS, 'positionsTable');
+  // Sensible first-time defaults: hide secondary technical detail
+  // (sector context, raw greeks/technicals, days held, non-annualized
+  // ROC) that matters less for a quick "anything need attention today"
+  // glance than P&L, DTE, the annualized ROC/tier, and the status/
+  // recommendation badges. Only applies the very first time this table
+  // loads for someone - any customization you make afterward always wins.
+  const { hidden, toggle, visibleColumns } = useColumnVisibility(COLUMNS, 'positionsTable', [
+    'sector', 'delta', 'theta', 'iv', 'rsi', 'days_held', 'roc',
+  ]);
   const { sorted, sortKey, direction, requestSort } = useSortableData(
     positionsWithStatus,
     (row, key) => COLUMNS.find((c) => c.key === key).getSortValue(row)

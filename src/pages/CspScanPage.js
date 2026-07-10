@@ -50,7 +50,13 @@ export default function CspScanPage() {
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
 
-  const { hidden, toggle, visibleColumns } = useColumnVisibility(COLUMNS, 'cspScanTable');
+  // Sensible first-time defaults - Mid is the actionable price, so raw
+  // Bid/Ask add less day-to-day; Open Interest alone is usually enough
+  // for a liquidity gut-check without also needing Volume. Only applies
+  // the very first time; any customization afterward always wins.
+  const { hidden, toggle, visibleColumns } = useColumnVisibility(COLUMNS, 'cspScanTable', [
+    'bid', 'ask', 'volume',
+  ]);
   const candidates = data?.candidates || [];
   const { sorted, sortKey, direction, requestSort } = useSortableData(
     candidates,

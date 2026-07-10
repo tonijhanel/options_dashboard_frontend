@@ -1,14 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
 import styles from './ColumnPicker.module.css';
 
-export function useColumnVisibility(allColumns, storageKey) {
+export function useColumnVisibility(allColumns, storageKey, defaultHidden = []) {
   const fullKey = `columnVisibility.${storageKey}`;
   const [hidden, setHidden] = useState(() => {
     try {
       const saved = localStorage.getItem(fullKey);
-      return saved ? new Set(JSON.parse(saved)) : new Set();
+      // Only fall back to the suggested defaults when nothing has ever
+      // been saved for this table - a user's own prior choice (even an
+      // empty one, meaning "show everything") always wins over a default.
+      return saved ? new Set(JSON.parse(saved)) : new Set(defaultHidden);
     } catch {
-      return new Set();
+      return new Set(defaultHidden);
     }
   });
 
