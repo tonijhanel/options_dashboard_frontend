@@ -1,11 +1,47 @@
 import { useState } from 'react';
 import { getCspScan } from '../api/client';
+import { useSortableData } from '../lib/useSortableData';
 import { LoadingView, ErrorView, EmptyView } from '../components/StateViews';
 import TradeSignalBadge from '../components/TradeSignalBadge';
+import SortableHeader from '../components/SortableHeader';
+import ColumnPicker, { useColumnVisibility } from '../components/ColumnPicker';
 import tableStyles from '../components/Table.module.css';
 import styles from './CspScanPage.module.css';
 
 const DEFAULTS = { ticker: '', minDelta: 0.1, maxDelta: 0.25, minDte: 21, maxDte: 60, includeIlliquid: false };
+
+// Same column-definition pattern as TspScanPage/PositionsPage - one
+// source of truth driving both the column picker and the sort logic.
+const COLUMNS = [
+  { key: 'expiration_date', label: 'Expiration', alwaysVisible: true, sortable: true, getSortValue: (c) => c.expiration_date,
+    render: (c) => c.expiration_date },
+  { key: 'days_to_expiration', label: 'DTE', sortable: true, getSortValue: (c) => c.days_to_expiration,
+    render: (c) => c.days_to_expiration },
+  { key: 'strike', label: 'Strike', sortable: true, getSortValue: (c) => c.strike,
+    render: (c) => c.strike?.toFixed(2) },
+  { key: 'delta', label: 'Delta', sortable: true, getSortValue: (c) => c.delta,
+    render: (c) => c.delta?.toFixed(3) },
+  { key: 'bid', label: 'Bid', sortable: true, getSortValue: (c) => c.bid,
+    render: (c) => c.bid?.toFixed(2) },
+  { key: 'ask', label: 'Ask', sortable: true, getSortValue: (c) => c.ask,
+    render: (c) => c.ask?.toFixed(2) },
+  { key: 'mid', label: 'Mid', sortable: true, getSortValue: (c) => c.mid,
+    render: (c) => c.mid?.toFixed(2) },
+  { key: 'iv_pct', label: 'IV', sortable: true, getSortValue: (c) => c.iv_pct,
+    render: (c) => (c.iv_pct !== null && c.iv_pct !== undefined ? `${c.iv_pct.toFixed(1)}%` : '—') },
+  { key: 'open_interest', label: 'OI', sortable: true, getSortValue: (c) => c.open_interest,
+    render: (c) => c.open_interest ?? '—' },
+  { key: 'volume', label: 'Volume', sortable: true, getSortValue: (c) => c.volume,
+    render: (c) => c.volume ?? '—' },
+  { key: 'annualized_yield_pct', label: 'Ann. Yield', sortable: true, getSortValue: (c) => c.annualized_yield_pct,
+    render: (c) => (c.annualized_yield_pct !== null && c.annualized_yield_pct !== undefined ? `${c.annualized_yield_pct.toFixed(1)}%` : '—') },
+  { key: 'trade_signal', label: 'Signal', sortable: true, getSortValue: (c) => c.trade_signal,
+    render: (c) => <TradeSignalBadge signal={c.trade_signal} /> },
+  { key: 'trade_signal_reason', label: 'Reason', sortable: true, getSortValue: (c) => c.trade_signal_reason || '',
+    render: (c) => c.trade_signal_reason },
+];
+
+const NON_NUMERIC_COLUMNS = ['expiration_date', 'trade_signal', 'trade_signal_reason'];
 
 export default function CspScanPage() {
   const [form, setForm] = useState(DEFAULTS);
@@ -13,6 +49,13 @@ export default function CspScanPage() {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+
+  const { hidden, toggle, visibleColumns } = useColumnVisibility(COLUMNS, 'cspScanTable');
+  const candidates = data?.candidates || [];
+  const { sorted, sortKey, direction, requestSort } = useSortableData(
+    candidates,
+    (row, key) => COLUMNS.find((c) => c.key === key).getSortValue(row)
+  );
 
   function updateField(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -139,54 +182,55 @@ export default function CspScanPage() {
             </span>
           </div>
 
-          {(!data.candidates || data.candidates.length === 0) ? (
+          {sorted.length === 0 ? (
             <EmptyView message="No candidates found in this delta/DTE range." />
           ) : (
-            <div className={tableStyles.tableWrap}>
-              <table className={tableStyles.table}>
-                <thead>
-                  <tr>
-                    <th>Expiration</th>
-                    <th>DTE</th>
-                    <th>Strike</th>
-                    <th>Delta</th>
-                    <th>Bid</th>
-                    <th>Ask</th>
-                    <th>Mid</th>
-                    <th>IV</th>
-                    <th>OI</th>
-                    <th>Volume</th>
-                    <th>Ann. Yield</th>
-                    <th>Signal</th>
-                    <th>Reason</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.candidates.map((c, i) => (
-                    <tr
-                      key={`${c.expiration_date}-${c.strike}-${i}`}
-                      className={c.is_liquid === false ? styles.illiquidRow : ''}
-                    >
-                      <td>{c.expiration_date}</td>
-                      <td className="num">{c.days_to_expiration}</td>
-                      <td className="num">{c.strike?.toFixed(2)}</td>
-                      <td className="num">{c.delta?.toFixed(3)}</td>
-                      <td className="num">{c.bid?.toFixed(2)}</td>
-                      <td className="num">{c.ask?.toFixed(2)}</td>
-                      <td className="num">{c.mid?.toFixed(2)}</td>
-                      <td className="num">{c.iv_pct?.toFixed(1)}%</td>
-                      <td className="num">{c.open_interest ?? '—'}</td>
-                      <td className="num">{c.volume ?? '—'}</td>
-                      <td className="num">{c.annualized_yield_pct?.toFixed(1)}%</td>
-                      <td>
-                        <TradeSignalBadge signal={c.trade_signal} />
-                      </td>
-                      <td className={styles.reasonCell}>{c.trade_signal_reason}</td>
+            <>
+              <div className={styles.tableToolbar}>
+                <ColumnPicker columns={COLUMNS} hidden={hidden} onToggle={toggle} />
+              </div>
+
+              <div className={tableStyles.tableWrap}>
+                <table className={tableStyles.table}>
+                  <thead>
+                    <tr>
+                      {visibleColumns.map((col) => (
+                        <SortableHeader
+                          key={col.key}
+                          label={col.label}
+                          columnKey={col.key}
+                          sortable={col.sortable}
+                          sortKey={sortKey}
+                          direction={direction}
+                          onSort={requestSort}
+                        />
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {sorted.map((c, i) => (
+                      <tr
+                        key={`${c.expiration_date}-${c.strike}-${i}`}
+                        className={c.is_liquid === false ? styles.illiquidRow : ''}
+                      >
+                        {visibleColumns.map((col) => (
+                          <td
+                            key={col.key}
+                            className={
+                              col.key === 'trade_signal_reason'
+                                ? tableStyles.wrapCell
+                                : NON_NUMERIC_COLUMNS.includes(col.key) ? '' : 'num'
+                            }
+                          >
+                            {col.render(c)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </>
       )}
