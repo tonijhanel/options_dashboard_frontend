@@ -8,6 +8,7 @@ const LINKS = [
   { to: '/position-log', label: 'Position Log' },
   { to: '/tsp-scan', label: 'Bulk Scan' },
   { to: '/csp-scan', label: 'Single Position Scan' },
+  { to: '/pnl-history', label: 'P&L History' },
 ];
 
 export default function Nav() {

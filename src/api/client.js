@@ -84,6 +84,10 @@ export function getRealizedPnl() {
   return request('/realized-pnl');
 }
 
+export function getPnlRange(start, end) {
+  return request(`/pnl-range?start=${start}&end=${end}`);
+}
+
 export function createPositionLogEntry(payload) {
   return request('/position-log', {
     method: 'POST',
