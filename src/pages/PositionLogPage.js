@@ -82,6 +82,9 @@ function RowActions({ row, onUpdated, isClosed }) {
   const [entryDate, setEntryDate] = useState(row.entry_date ? row.entry_date.slice(0, 10) : '');
   const [closedPrice, setClosedPrice] = useState(row.closed_price ?? '');
   const [closeReason, setCloseReason] = useState(row.close_reason ?? '');
+  const [positionType, setPositionType] = useState(row.position_type || 'naked_put');
+  const [shortStrike, setShortStrike] = useState(row.short_strike ?? '');
+  const [longStrike, setLongStrike] = useState(row.long_strike ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -92,6 +95,16 @@ function RowActions({ row, onUpdated, isClosed }) {
       const payload = {
         entry_price: entryPrice !== '' ? Number(entryPrice) : undefined,
         entry_date: entryDate || undefined,
+        position_type: positionType,
+        // Only send strikes when reclassifying AS a spread - a naked_put
+        // row has no meaningful short/long strike, so don't overwrite
+        // with blanks if the type wasn't actually changed to spread.
+        ...(positionType === 'vertical_spread'
+          ? {
+              short_strike: shortStrike !== '' ? Number(shortStrike) : undefined,
+              long_strike: longStrike !== '' ? Number(longStrike) : undefined,
+            }
+          : {}),
       };
       // For an already-closed row, "Edit" also lets you fill in or correct
       // the closed_price/close_reason after the fact - e.g. adding a note
@@ -148,6 +161,25 @@ function RowActions({ row, onUpdated, isClosed }) {
           Entry Date
           <input type="date" value={entryDate} onChange={(e) => setEntryDate(e.target.value)} className={styles.formInputSmall} />
         </label>
+        <label>
+          Type
+          <select value={positionType} onChange={(e) => setPositionType(e.target.value)} className={styles.formInputSmall}>
+            <option value="naked_put">Naked Put</option>
+            <option value="vertical_spread">Spread</option>
+          </select>
+        </label>
+        {positionType === 'vertical_spread' && (
+          <>
+            <label>
+              Short Strike
+              <input type="number" step="0.01" value={shortStrike} onChange={(e) => setShortStrike(e.target.value)} className={styles.formInputSmall} />
+            </label>
+            <label>
+              Long Strike
+              <input type="number" step="0.01" value={longStrike} onChange={(e) => setLongStrike(e.target.value)} className={styles.formInputSmall} />
+            </label>
+          </>
+        )}
         {isClosed && (
           <>
             <label>
