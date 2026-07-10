@@ -6,6 +6,7 @@ import CspScanPage from './pages/CspScanPage';
 import PortfolioOverviewPage from './pages/PortfolioOverviewPage';
 import NewsSentimentPage from './pages/NewsSentimentPage';
 import PositionLogPage from './pages/PositionLogPage';
+import PnlHistoryPage from './pages/PnlHistoryPage';
 import styles from './App.module.css';
 
 export default function App() {
@@ -20,6 +21,7 @@ export default function App() {
           <Route path="/portfolio-overview" element={<PortfolioOverviewPage />} />
           <Route path="/news-sentiment" element={<NewsSentimentPage />} />
           <Route path="/position-log" element={<PositionLogPage />} />
+          <Route path="/pnl-history" element={<PnlHistoryPage />} />
         </Routes>
       </main>
     </BrowserRouter>
