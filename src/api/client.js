@@ -80,6 +80,10 @@ export function getPositionLog(status = 'open') {
   return request(`/position-log?status=${status}`);
 }
 
+export function getRealizedPnl() {
+  return request('/realized-pnl');
+}
+
 export function createPositionLogEntry(payload) {
   return request('/position-log', {
     method: 'POST',

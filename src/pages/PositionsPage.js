@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { getPositions } from '../api/client';
+import { getPositions, getRealizedPnl } from '../api/client';
 import { useApiData } from '../lib/useApiData';
 import { useSortableData } from '../lib/useSortableData';
 import { computeStatus } from '../lib/positionSignal';
@@ -96,6 +96,7 @@ export default function PositionsPage() {
   const [profitTarget, setProfitTarget] = useState(80);
   const [selectedKey, setSelectedKey] = useState(null);
   const { data, error, loading, refetch } = useApiData(getPositions, 'positions');
+  const { data: realizedPnl } = useApiData(getRealizedPnl, 'realized-pnl');
   const { getEntry: getNewsEntry } = useNewsSentiment();
 
   const positionsWithStatus = useMemo(() => {
@@ -171,6 +172,26 @@ export default function PositionsPage() {
             value: portfolioTotals.currentPL,
             subTone: portfolioTotals.currentPL >= 0 ? 'positive' : undefined,
           },
+          ...(realizedPnl
+            ? [
+                {
+                  label: 'Realized P&L Today',
+                  value: realizedPnl.today.realized_pnl,
+                  subTone: realizedPnl.today.realized_pnl >= 0 ? 'positive' : undefined,
+                  sub: realizedPnl.today.missing_price_count > 0
+                    ? `${realizedPnl.today.missing_price_count} close(s) missing price - not included`
+                    : `${realizedPnl.today.closed_count} position(s) closed`,
+                },
+                {
+                  label: 'Realized P&L This Week',
+                  value: realizedPnl.this_week.realized_pnl,
+                  subTone: realizedPnl.this_week.realized_pnl >= 0 ? 'positive' : undefined,
+                  sub: realizedPnl.this_week.missing_price_count > 0
+                    ? `${realizedPnl.this_week.missing_price_count} close(s) missing price - not included`
+                    : `${realizedPnl.this_week.closed_count} position(s) closed`,
+                },
+              ]
+            : []),
         ]}
       />
 
