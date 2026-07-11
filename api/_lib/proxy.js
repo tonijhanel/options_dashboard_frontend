@@ -14,19 +14,26 @@
  */
 
 export async function proxyToRailway(req, res, backendPath) {
-  const baseUrl = process.env.RAILWAY_API_URL;
+  const rawBaseUrl = process.env.RAILWAY_API_URL;
   const apiKey = process.env.RAILWAY_API_KEY;
 
-  if (!baseUrl || !apiKey) {
+  if (!rawBaseUrl || !apiKey) {
     res.status(500).json({ error: 'RAILWAY_API_URL/RAILWAY_API_KEY not configured on the proxy' });
     return;
   }
+
+  // Normalize slashes so a trailing slash on RAILWAY_API_URL (or any
+  // future variation in how backendPath gets built) can never produce a
+  // malformed double-slash URL - Railway's own infra layer was serving an
+  // HTML error page for exactly this, before Flask ever saw the request.
+  const baseUrl = rawBaseUrl.replace(/\/+$/, '');
+  const normalizedPath = '/' + backendPath.replace(/^\/+/, '');
 
   // Forward any query string the browser sent (e.g. ?min_delta=0.10)
   const queryIndex = req.url.indexOf('?');
   const queryString = queryIndex !== -1 ? req.url.slice(queryIndex) : '';
 
-  const url = `${baseUrl}${backendPath}${queryString}`;
+  const url = `${baseUrl}${normalizedPath}${queryString}`;
 
   try {
     const response = await fetch(url, {
@@ -35,9 +42,23 @@ export async function proxyToRailway(req, res, backendPath) {
       body: req.method !== 'GET' && req.method !== 'HEAD' ? JSON.stringify(req.body) : undefined,
     });
 
-    const data = await response.json();
+    const rawText = await response.text();
+    let data;
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      // The backend (or something in front of it) returned something
+      // that isn't JSON - report the actual status and a snippet of what
+      // came back instead of just the generic parse-error message, so
+      // this is diagnosable from the browser directly next time.
+      res.status(502).json({
+        error: `Backend returned non-JSON response (status ${response.status}) for ${url}: ${rawText.slice(0, 200)}`,
+      });
+      return;
+    }
+
     res.status(response.status).json(data);
   } catch (e) {
-    res.status(502).json({ error: `Failed to reach backend: ${e.message}` });
+    res.status(502).json({ error: `Failed to reach backend at ${url}: ${e.message}` });
   }
 }
