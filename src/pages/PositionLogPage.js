@@ -4,13 +4,14 @@ import { useSortableData } from '../lib/useSortableData';
 import { LoadingView, ErrorView, EmptyView } from '../components/StateViews';
 import PageHeader from '../components/PageHeader';
 import SortableHeader from '../components/SortableHeader';
+import ColumnPicker, { useColumnVisibility } from '../components/ColumnPicker';
 import tableStyles from '../components/Table.module.css';
 import styles from './PositionLogPage.module.css';
 
 const CLOSE_REASON_SUGGESTIONS = ['assigned', 'bought_back', 'rolled', 'expired'];
 
 const OPEN_COLUMNS = [
-  { key: 'ticker', label: 'Ticker', sortable: true, getSortValue: (r) => r.ticker },
+  { key: 'ticker', label: 'Ticker', alwaysVisible: true, sortable: true, getSortValue: (r) => r.ticker },
   { key: 'position_type', label: 'Type', sortable: true, getSortValue: (r) => r.position_type },
   { key: 'strike', label: 'Strike', sortable: true, getSortValue: (r) => r.short_strike ?? r.strike },
   { key: 'expiration', label: 'Expiration', sortable: true, getSortValue: (r) => r.expiration },
@@ -25,6 +26,7 @@ const CLOSED_COLUMNS = [
   ...OPEN_COLUMNS,
   { key: 'closed_date', label: 'Closed Date', sortable: true, getSortValue: (r) => r.closed_date },
   { key: 'closed_price', label: 'Closed Price', sortable: true, getSortValue: (r) => r.closed_price },
+  { key: 'realized_pnl', label: 'P&L', sortable: true, getSortValue: (r) => r.realized_pnl },
   { key: 'close_reason', label: 'Close Reason', sortable: true, getSortValue: (r) => r.close_reason || '' },
 ];
 
@@ -101,8 +103,22 @@ function RowActions({ row, onUpdated, isClosed }) {
     setSaving(true);
     setError(null);
     try {
+      const spreadNetEntry = shortEntryPrice !== '' && longEntryPrice !== ''
+        ? Number(shortEntryPrice) - Number(longEntryPrice)
+        : undefined;
+      const spreadNetClose = shortClosePrice !== '' && longClosePrice !== ''
+        ? Number(shortClosePrice) - Number(longClosePrice)
+        : undefined;
+
       const payload = {
-        entry_price: entryPrice !== '' ? Number(entryPrice) : undefined,
+        // For a spread, entry_price is no longer directly editable - it's
+        // auto-computed as the net per-share credit (short - long) from
+        // the two real fields above, so anything still reading this
+        // field directly sees a sane net value instead of the old raw
+        // short-leg-only amount.
+        entry_price: positionType === 'vertical_spread'
+          ? spreadNetEntry
+          : (entryPrice !== '' ? Number(entryPrice) : undefined),
         entry_date: entryDate || undefined,
         position_type: positionType,
         // Only send strikes/per-leg prices when reclassifying AS a spread
@@ -122,7 +138,9 @@ function RowActions({ row, onUpdated, isClosed }) {
       // the closed_price/close_reason after the fact - e.g. adding a note
       // you didn't have time to enter when you closed it yesterday.
       if (isClosed) {
-        payload.closed_price = closedPrice !== '' ? Number(closedPrice) : undefined;
+        payload.closed_price = positionType === 'vertical_spread'
+          ? spreadNetClose
+          : (closedPrice !== '' ? Number(closedPrice) : undefined);
         payload.close_reason = closeReason || undefined;
         if (positionType === 'vertical_spread') {
           payload.short_close_price = shortClosePrice !== '' ? Number(shortClosePrice) : undefined;
@@ -143,9 +161,14 @@ function RowActions({ row, onUpdated, isClosed }) {
     setSaving(true);
     setError(null);
     try {
+      const spreadNetClose = shortClosePrice !== '' && longClosePrice !== ''
+        ? Number(shortClosePrice) - Number(longClosePrice)
+        : undefined;
       await updatePositionLogEntry(row.id, {
         status: 'closed',
-        closed_price: closedPrice !== '' ? Number(closedPrice) : undefined,
+        closed_price: positionType === 'vertical_spread'
+          ? spreadNetClose
+          : (closedPrice !== '' ? Number(closedPrice) : undefined),
         close_reason: closeReason || undefined,
         ...(positionType === 'vertical_spread'
           ? {
@@ -175,10 +198,12 @@ function RowActions({ row, onUpdated, isClosed }) {
   if (mode === 'edit') {
     return (
       <div className={styles.inlinePanel}>
-        <label>
-          Entry Price
-          <input type="number" step="0.01" value={entryPrice} onChange={(e) => setEntryPrice(e.target.value)} className={styles.formInputSmall} />
-        </label>
+        {positionType !== 'vertical_spread' && (
+          <label>
+            Entry Price
+            <input type="number" step="0.01" value={entryPrice} onChange={(e) => setEntryPrice(e.target.value)} className={styles.formInputSmall} />
+          </label>
+        )}
         <label>
           Entry Date
           <input type="date" value={entryDate} onChange={(e) => setEntryDate(e.target.value)} className={styles.formInputSmall} />
@@ -212,10 +237,12 @@ function RowActions({ row, onUpdated, isClosed }) {
         )}
         {isClosed && (
           <>
-            <label>
-              Closed Price
-              <input type="number" step="0.01" value={closedPrice} onChange={(e) => setClosedPrice(e.target.value)} className={styles.formInputSmall} />
-            </label>
+            {positionType !== 'vertical_spread' && (
+              <label>
+                Closed Price
+                <input type="number" step="0.01" value={closedPrice} onChange={(e) => setClosedPrice(e.target.value)} className={styles.formInputSmall} />
+              </label>
+            )}
             {positionType === 'vertical_spread' && (
               <>
                 <label>
@@ -252,10 +279,12 @@ function RowActions({ row, onUpdated, isClosed }) {
 
   return (
     <div className={styles.inlinePanel}>
-      <label>
-        Closed Price
-        <input type="number" step="0.01" value={closedPrice} onChange={(e) => setClosedPrice(e.target.value)} className={styles.formInputSmall} />
-      </label>
+      {positionType !== 'vertical_spread' && (
+        <label>
+          Closed Price
+          <input type="number" step="0.01" value={closedPrice} onChange={(e) => setClosedPrice(e.target.value)} className={styles.formInputSmall} />
+        </label>
+      )}
       {positionType === 'vertical_spread' && (
         <>
           <label>
@@ -314,6 +343,13 @@ export default function PositionLogPage() {
 
   const positions = data?.positions || [];
   const columns = statusView === 'closed' ? CLOSED_COLUMNS : OPEN_COLUMNS;
+  // Column visibility is keyed separately for open vs. closed, since the
+  // two views have genuinely different columns (closed adds three more) -
+  // Source is hidden by default since it's low day-to-day value (mostly
+  // just "auto" vs "manual"); anyone can re-show it via the picker.
+  const { hidden, toggle, visibleColumns } = useColumnVisibility(
+    columns, `positionLogTable.${statusView}`, ['source']
+  );
   const { sorted, sortKey, direction, requestSort } = useSortableData(
     positions,
     (row, key) => columns.find((c) => c.key === key).getSortValue(row)
@@ -348,7 +384,11 @@ export default function PositionLogPage() {
             Closed
           </button>
         </div>
+        <div className={styles.columnPickerSlot}>
+          <ColumnPicker columns={columns} hidden={hidden} onToggle={toggle} />
+        </div>
       </div>
+
 
       {statusView === 'open' && (
         !showAddForm ? (
@@ -365,7 +405,7 @@ export default function PositionLogPage() {
           <table className={tableStyles.table}>
             <thead>
               <tr>
-                {columns.map((col) => (
+                {visibleColumns.map((col) => (
                   <SortableHeader
                     key={col.key}
                     label={col.label}
@@ -384,27 +424,52 @@ export default function PositionLogPage() {
               {sorted.map((row) => (
                 <tr key={row.id}>
                   <td className={styles.ticker}>{row.ticker}</td>
-                  <td>{row.position_type === 'vertical_spread' ? 'Spread' : 'Naked Put'}</td>
-                  <td className="num">
-                    {row.position_type === 'vertical_spread'
-                      ? `${row.short_strike}/${row.long_strike}`
-                      : row.strike?.toFixed(2)}
-                  </td>
-                  <td>{row.expiration}</td>
-                  <td className="num">{row.contracts}</td>
-                  <td className="num">{row.entry_price !== null && row.entry_price !== undefined ? row.entry_price.toFixed(2) : '—'}</td>
-                  <td className="num">
-                    {row.collateral_required !== null && row.collateral_required !== undefined
-                      ? `$${row.collateral_required.toLocaleString()}`
-                      : '—'}
-                  </td>
-                  <td>{row.entry_date ? new Date(row.entry_date).toLocaleDateString() : '—'}</td>
-                  <td className={tableStyles.muted}>{row.source}</td>
+                  {!hidden.has('position_type') && (
+                    <td>{row.position_type === 'vertical_spread' ? 'Spread' : 'Naked Put'}</td>
+                  )}
+                  {!hidden.has('strike') && (
+                    <td className="num">
+                      {row.position_type === 'vertical_spread'
+                        ? `${row.short_strike}/${row.long_strike}`
+                        : row.strike?.toFixed(2)}
+                    </td>
+                  )}
+                  {!hidden.has('expiration') && <td>{row.expiration}</td>}
+                  {!hidden.has('contracts') && <td className="num">{row.contracts}</td>}
+                  {!hidden.has('entry_price') && (
+                    <td className="num">
+                      {row.position_type === 'vertical_spread' && row.short_entry_price != null && row.long_entry_price != null
+                        ? (row.short_entry_price - row.long_entry_price).toFixed(2)
+                        : row.entry_price !== null && row.entry_price !== undefined ? row.entry_price.toFixed(2) : '—'}
+                    </td>
+                  )}
+                  {!hidden.has('collateral_required') && (
+                    <td className="num">
+                      {row.collateral_required !== null && row.collateral_required !== undefined
+                        ? `$${row.collateral_required.toLocaleString()}`
+                        : '—'}
+                    </td>
+                  )}
+                  {!hidden.has('entry_date') && (
+                    <td>{row.entry_date ? new Date(row.entry_date).toLocaleDateString() : '—'}</td>
+                  )}
+                  {!hidden.has('source') && <td className={tableStyles.muted}>{row.source}</td>}
                   {statusView === 'closed' && (
                     <>
-                      <td>{row.closed_date ? new Date(row.closed_date).toLocaleDateString() : '—'}</td>
-                      <td className="num">{row.closed_price !== null && row.closed_price !== undefined ? row.closed_price.toFixed(2) : '—'}</td>
-                      <td className={row.close_reason ? '' : tableStyles.muted}>{row.close_reason || 'not recorded'}</td>
+                      {!hidden.has('closed_date') && (
+                        <td>{row.closed_date ? new Date(row.closed_date).toLocaleDateString() : '—'}</td>
+                      )}
+                      {!hidden.has('closed_price') && (
+                        <td className="num">{row.closed_price !== null && row.closed_price !== undefined ? row.closed_price.toFixed(2) : '—'}</td>
+                      )}
+                      {!hidden.has('realized_pnl') && (
+                        <td className={`num ${row.realized_pnl == null ? tableStyles.muted : row.realized_pnl >= 0 ? styles.positive : styles.negative}`}>
+                          {row.realized_pnl != null ? `$${row.realized_pnl.toLocaleString()}` : 'missing price'}
+                        </td>
+                      )}
+                      {!hidden.has('close_reason') && (
+                        <td className={row.close_reason ? '' : tableStyles.muted}>{row.close_reason || 'not recorded'}</td>
+                      )}
                     </>
                   )}
                   {statusView === 'open' && (

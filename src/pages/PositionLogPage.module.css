@@ -13,6 +13,20 @@
   flex-wrap: wrap;
 }
 
+.columnPickerSlot {
+  margin-left: auto;
+}
+
+.positive {
+  color: var(--status-take-profit);
+  font-weight: 600;
+}
+
+.negative {
+  color: var(--negative);
+  font-weight: 600;
+}
+
 .viewToggle {
   display: flex;
   gap: var(--space-2);
