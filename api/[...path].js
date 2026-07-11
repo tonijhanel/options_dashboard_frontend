@@ -24,8 +24,24 @@ import { proxyToRailway } from './_lib/proxy.js';
  * and similar routes keep working unchanged.
  */
 export default function handler(req, res) {
-  const { path } = req.query;
+  const { path, ...realQueryParams } = req.query;
   const segments = Array.isArray(path) ? path : [path];
   const backendPath = '/' + segments.join('/');
-  return proxyToRailway(req, res, backendPath);
+
+  // Build the query string explicitly from whatever's left in req.query
+  // after removing the path-segments key - req.url itself isn't reliable
+  // here (see proxy.js's comment: for this catch-all route, req.url
+  // reflects Vercel's own internal routing representation, not the
+  // original request, which produced a malformed forwarded URL).
+  const searchParams = new URLSearchParams();
+  for (const [key, value] of Object.entries(realQueryParams)) {
+    if (Array.isArray(value)) {
+      value.forEach((v) => searchParams.append(key, v));
+    } else {
+      searchParams.append(key, value);
+    }
+  }
+  const queryString = searchParams.toString() ? `?${searchParams.toString()}` : '';
+
+  return proxyToRailway(req, res, backendPath, queryString);
 }

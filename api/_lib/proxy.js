@@ -13,7 +13,7 @@
  *   RAILWAY_API_KEY - the same value as SNAPSHOT_API_KEY on Railway
  */
 
-export async function proxyToRailway(req, res, backendPath) {
+export async function proxyToRailway(req, res, backendPath, explicitQueryString) {
   const rawBaseUrl = process.env.RAILWAY_API_URL;
   const apiKey = process.env.RAILWAY_API_KEY;
 
@@ -22,16 +22,23 @@ export async function proxyToRailway(req, res, backendPath) {
     return;
   }
 
-  // Normalize slashes so a trailing slash on RAILWAY_API_URL (or any
-  // future variation in how backendPath gets built) can never produce a
-  // malformed double-slash URL - Railway's own infra layer was serving an
-  // HTML error page for exactly this, before Flask ever saw the request.
   const baseUrl = rawBaseUrl.replace(/\/+$/, '');
   const normalizedPath = '/' + backendPath.replace(/^\/+/, '');
 
-  // Forward any query string the browser sent (e.g. ?min_delta=0.10)
-  const queryIndex = req.url.indexOf('?');
-  const queryString = queryIndex !== -1 ? req.url.slice(queryIndex) : '';
+  // For a dynamic catch-all route ([...path].js), req.url reflects
+  // Vercel's own internal routing bookkeeping for the matched segments,
+  // not the original clean request - relying on it here produced a
+  // malformed URL (a literal "?...path=positions" ended up appended to
+  // the backend URL). The caller should build a clean query string from
+  // req.query directly (excluding whatever key holds the path segments)
+  // and pass it explicitly. Falls back to parsing req.url for any other
+  // caller that doesn't need this (kept for backward compatibility).
+  const queryString = explicitQueryString !== undefined
+    ? explicitQueryString
+    : (() => {
+        const queryIndex = req.url.indexOf('?');
+        return queryIndex !== -1 ? req.url.slice(queryIndex) : '';
+      })();
 
   const url = `${baseUrl}${normalizedPath}${queryString}`;
 
