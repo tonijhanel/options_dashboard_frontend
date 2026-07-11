@@ -186,11 +186,43 @@ function RowActions({ row, onUpdated, isClosed }) {
     }
   }
 
+  async function handleReopen() {
+    setSaving(true);
+    setError(null);
+    try {
+      // Corrects a position that was wrongly auto-closed - e.g. a call
+      // spread the old detection logic couldn't see at all (fixed today),
+      // making the diff think it had disappeared when it was actually
+      // still open the whole time. Clears every close-related field
+      // rather than just flipping status, so the row doesn't linger with
+      // stale closed_date/close_reason data alongside status='open'.
+      await updatePositionLogEntry(row.id, {
+        status: 'open',
+        closed_date: null,
+        closed_price: null,
+        close_reason: null,
+        short_close_price: null,
+        long_close_price: null,
+      });
+      onUpdated();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   if (mode === null) {
     return (
       <div className={styles.rowActions}>
         <button className={styles.actionButton} onClick={() => setMode('edit')}>Edit</button>
         {!isClosed && <button className={styles.actionButtonClose} onClick={() => setMode('close')}>Close</button>}
+        {isClosed && (
+          <button className={styles.actionButton} onClick={handleReopen} disabled={saving}>
+            {saving ? 'Reopening…' : 'Reopen'}
+          </button>
+        )}
+        {error && <div className={styles.formError}>{error}</div>}
       </div>
     );
   }
