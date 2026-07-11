@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import styles from './Nav.module.css';
+import SchwabTokenStatus from './SchwabTokenStatus';
 
 const LINKS = [
   { to: '/', label: 'Positions' },
@@ -27,6 +28,7 @@ export default function Nav() {
           </NavLink>
         ))}
       </div>
+      <SchwabTokenStatus />
     </nav>
   );
 }
