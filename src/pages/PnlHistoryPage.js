@@ -141,11 +141,24 @@ export default function PnlHistoryPage() {
             {t.label}
           </button>
         ))}
-        {typeFilter === 'vertical_spread' && (
-          <span className={styles.spreadWarning}>
-            Spread premium/P&L numbers are currently unreliable - full spread modeling isn't built yet.
-          </span>
-        )}
+        {typeFilter === 'vertical_spread' && filtered && (() => {
+          // Only warn about rows that ACTUALLY lack per-leg data - a
+          // spread logged since per-leg tracking was added has real
+          // numbers; only older rows (missing short_entry_price/
+          // long_entry_price) fall back to the less accurate
+          // approximation.
+          const allSpreadRows = [...filtered.premium_collected.positions, ...filtered.realized_pnl.positions];
+          const hasLegacyRow = allSpreadRows.some(
+            (p) => p.short_entry_price === null || p.short_entry_price === undefined
+          );
+          if (!hasLegacyRow) return null;
+          return (
+            <span className={styles.spreadWarning}>
+              Some older spreads (logged before per-leg tracking existed) show an approximate premium/P&L -
+              spreads logged since then use real per-leg data and are accurate.
+            </span>
+          );
+        })()}
       </div>
 
       {error && <ErrorView message={error} onRetry={() => fetchData(range.start, range.end)} />}

@@ -16,6 +16,7 @@ const OPEN_COLUMNS = [
   { key: 'expiration', label: 'Expiration', sortable: true, getSortValue: (r) => r.expiration },
   { key: 'contracts', label: 'Contracts', sortable: true, getSortValue: (r) => r.contracts },
   { key: 'entry_price', label: 'Entry Price', sortable: true, getSortValue: (r) => r.entry_price },
+  { key: 'collateral_required', label: 'Collateral', sortable: true, getSortValue: (r) => r.collateral_required },
   { key: 'entry_date', label: 'Entry Date', sortable: true, getSortValue: (r) => r.entry_date },
   { key: 'source', label: 'Source', sortable: true, getSortValue: (r) => r.source },
 ];
@@ -85,6 +86,14 @@ function RowActions({ row, onUpdated, isClosed }) {
   const [positionType, setPositionType] = useState(row.position_type || 'naked_put');
   const [shortStrike, setShortStrike] = useState(row.short_strike ?? '');
   const [longStrike, setLongStrike] = useState(row.long_strike ?? '');
+  // Per-leg prices - the real source of truth for a spread's true net
+  // premium/P&L, as opposed to entry_price/closed_price alone (which
+  // only ever mirrored the short leg's raw amount, not a genuine net
+  // premium across both legs).
+  const [shortEntryPrice, setShortEntryPrice] = useState(row.short_entry_price ?? '');
+  const [longEntryPrice, setLongEntryPrice] = useState(row.long_entry_price ?? '');
+  const [shortClosePrice, setShortClosePrice] = useState(row.short_close_price ?? '');
+  const [longClosePrice, setLongClosePrice] = useState(row.long_close_price ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -96,13 +105,16 @@ function RowActions({ row, onUpdated, isClosed }) {
         entry_price: entryPrice !== '' ? Number(entryPrice) : undefined,
         entry_date: entryDate || undefined,
         position_type: positionType,
-        // Only send strikes when reclassifying AS a spread - a naked_put
-        // row has no meaningful short/long strike, so don't overwrite
-        // with blanks if the type wasn't actually changed to spread.
+        // Only send strikes/per-leg prices when reclassifying AS a spread
+        // - a naked_put row has no meaningful short/long strike or leg
+        // prices, so don't overwrite with blanks if the type wasn't
+        // actually changed to spread.
         ...(positionType === 'vertical_spread'
           ? {
               short_strike: shortStrike !== '' ? Number(shortStrike) : undefined,
               long_strike: longStrike !== '' ? Number(longStrike) : undefined,
+              short_entry_price: shortEntryPrice !== '' ? Number(shortEntryPrice) : undefined,
+              long_entry_price: longEntryPrice !== '' ? Number(longEntryPrice) : undefined,
             }
           : {}),
       };
@@ -112,6 +124,10 @@ function RowActions({ row, onUpdated, isClosed }) {
       if (isClosed) {
         payload.closed_price = closedPrice !== '' ? Number(closedPrice) : undefined;
         payload.close_reason = closeReason || undefined;
+        if (positionType === 'vertical_spread') {
+          payload.short_close_price = shortClosePrice !== '' ? Number(shortClosePrice) : undefined;
+          payload.long_close_price = longClosePrice !== '' ? Number(longClosePrice) : undefined;
+        }
       }
       await updatePositionLogEntry(row.id, payload);
       setMode(null);
@@ -131,6 +147,12 @@ function RowActions({ row, onUpdated, isClosed }) {
         status: 'closed',
         closed_price: closedPrice !== '' ? Number(closedPrice) : undefined,
         close_reason: closeReason || undefined,
+        ...(positionType === 'vertical_spread'
+          ? {
+              short_close_price: shortClosePrice !== '' ? Number(shortClosePrice) : undefined,
+              long_close_price: longClosePrice !== '' ? Number(longClosePrice) : undefined,
+            }
+          : {}),
       });
       setMode(null);
       onUpdated();
@@ -178,6 +200,14 @@ function RowActions({ row, onUpdated, isClosed }) {
               Long Strike
               <input type="number" step="0.01" value={longStrike} onChange={(e) => setLongStrike(e.target.value)} className={styles.formInputSmall} />
             </label>
+            <label>
+              Short Entry Price
+              <input type="number" step="0.01" value={shortEntryPrice} onChange={(e) => setShortEntryPrice(e.target.value)} className={styles.formInputSmall} />
+            </label>
+            <label>
+              Long Entry Price
+              <input type="number" step="0.01" value={longEntryPrice} onChange={(e) => setLongEntryPrice(e.target.value)} className={styles.formInputSmall} />
+            </label>
           </>
         )}
         {isClosed && (
@@ -186,6 +216,18 @@ function RowActions({ row, onUpdated, isClosed }) {
               Closed Price
               <input type="number" step="0.01" value={closedPrice} onChange={(e) => setClosedPrice(e.target.value)} className={styles.formInputSmall} />
             </label>
+            {positionType === 'vertical_spread' && (
+              <>
+                <label>
+                  Short Close Price
+                  <input type="number" step="0.01" value={shortClosePrice} onChange={(e) => setShortClosePrice(e.target.value)} className={styles.formInputSmall} />
+                </label>
+                <label>
+                  Long Close Price
+                  <input type="number" step="0.01" value={longClosePrice} onChange={(e) => setLongClosePrice(e.target.value)} className={styles.formInputSmall} />
+                </label>
+              </>
+            )}
             <label>
               Close Reason
               <input
@@ -214,6 +256,18 @@ function RowActions({ row, onUpdated, isClosed }) {
         Closed Price
         <input type="number" step="0.01" value={closedPrice} onChange={(e) => setClosedPrice(e.target.value)} className={styles.formInputSmall} />
       </label>
+      {positionType === 'vertical_spread' && (
+        <>
+          <label>
+            Short Close Price
+            <input type="number" step="0.01" value={shortClosePrice} onChange={(e) => setShortClosePrice(e.target.value)} className={styles.formInputSmall} />
+          </label>
+          <label>
+            Long Close Price
+            <input type="number" step="0.01" value={longClosePrice} onChange={(e) => setLongClosePrice(e.target.value)} className={styles.formInputSmall} />
+          </label>
+        </>
+      )}
       <label>
         Close Reason
         <input
@@ -339,6 +393,11 @@ export default function PositionLogPage() {
                   <td>{row.expiration}</td>
                   <td className="num">{row.contracts}</td>
                   <td className="num">{row.entry_price !== null && row.entry_price !== undefined ? row.entry_price.toFixed(2) : '—'}</td>
+                  <td className="num">
+                    {row.collateral_required !== null && row.collateral_required !== undefined
+                      ? `$${row.collateral_required.toLocaleString()}`
+                      : '—'}
+                  </td>
                   <td>{row.entry_date ? new Date(row.entry_date).toLocaleDateString() : '—'}</td>
                   <td className={tableStyles.muted}>{row.source}</td>
                   {statusView === 'closed' && (
