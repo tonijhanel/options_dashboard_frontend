@@ -88,6 +88,21 @@ export function getPnlRange(start, end) {
   return request(`/pnl-range?start=${start}&end=${end}`);
 }
 
+export function getSchwabTokenHealth() {
+  return request('/schwab-token-health');
+}
+
+export function getSchwabReconnectUrl() {
+  return request('/schwab-reconnect-url');
+}
+
+export function submitSchwabReconnect(redirectUrl) {
+  return request('/schwab-reconnect', {
+    method: 'POST',
+    body: JSON.stringify({ redirect_url: redirectUrl }),
+  });
+}
+
 export function createPositionLogEntry(payload) {
   return request('/position-log', {
     method: 'POST',
