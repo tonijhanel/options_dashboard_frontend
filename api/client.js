@@ -92,6 +92,28 @@ export function getSchwabTokenHealth() {
   return request('/schwab-token-health');
 }
 
+export function getTickers() {
+  return request('/tickers');
+}
+
+export function addTicker(payload) {
+  return request('/tickers', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteTicker(ticker) {
+  return request(`/tickers/${ticker}`, { method: 'DELETE' });
+}
+
+export function classifyTicker(ticker) {
+  return request('/tickers/classify', {
+    method: 'POST',
+    body: JSON.stringify({ ticker }),
+  });
+}
+
 export function getSchwabReconnectUrl() {
   return request('/schwab-reconnect-url');
 }

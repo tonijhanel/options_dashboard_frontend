@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getTickers, addTicker, deleteTicker } from '../api/client';
+import { getTickers, addTicker, deleteTicker, classifyTicker } from '../api/client';
 import { LoadingView, ErrorView, EmptyView } from '../components/StateViews';
 import PageHeader from '../components/PageHeader';
 import SortableHeader from '../components/SortableHeader';
@@ -28,6 +28,8 @@ export default function TickerRegistryPage() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState(null);
   const [deletingTicker, setDeletingTicker] = useState(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analyzeError, setAnalyzeError] = useState(null);
 
   const { hidden, toggle, visibleColumns } = useColumnVisibility(COLUMNS, 'tickerRegistryTable');
 
@@ -74,6 +76,29 @@ export default function TickerRegistryPage() {
     setEditingTicker(null);
     setForm(EMPTY_FORM);
     setFormError(null);
+  }
+
+  async function handleAnalyze() {
+    if (!form.ticker.trim()) return;
+    setAnalyzing(true);
+    setAnalyzeError(null);
+    try {
+      const result = await classifyTicker(form.ticker.trim().toUpperCase());
+      // Pre-fills the form for review - does NOT save anything. Sector
+      // is deliberately left as whatever's already typed, since the
+      // webhook doesn't classify that field at all.
+      setForm((f) => ({
+        ...f,
+        group: result.group || f.group,
+        target_delta: result.target_delta ?? f.target_delta,
+        default_contracts: result.default_contracts ?? f.default_contracts,
+        rationale: result.rationale || f.rationale,
+      }));
+    } catch (err) {
+      setAnalyzeError(err.message);
+    } finally {
+      setAnalyzing(false);
+    }
   }
 
   async function handleSubmit(e) {
@@ -139,6 +164,16 @@ export default function TickerRegistryPage() {
               className={styles.tickerInput}
             />
           </label>
+          {!editingTicker && (
+            <button
+              type="button"
+              className={styles.analyzeButton}
+              onClick={handleAnalyze}
+              disabled={analyzing || !form.ticker.trim()}
+            >
+              {analyzing ? 'Analyzing…' : 'Analyze with AI'}
+            </button>
+          )}
           <label>
             Group
             <select value={form.group} onChange={(e) => setForm((f) => ({ ...f, group: e.target.value }))} className={styles.selectInput}>
@@ -193,6 +228,7 @@ export default function TickerRegistryPage() {
             <button type="button" className={styles.cancelButton} onClick={startAdd}>Cancel Edit</button>
           )}
         </div>
+        {analyzeError && <div className={styles.formError}>Analysis failed: {analyzeError}</div>}
         {formError && <div className={styles.formError}>{formError}</div>}
       </form>
 
