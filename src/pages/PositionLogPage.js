@@ -18,6 +18,7 @@ const OPEN_COLUMNS = [
   { key: 'contracts', label: 'Contracts', sortable: true, getSortValue: (r) => r.contracts },
   { key: 'entry_price', label: 'Entry Price', sortable: true, getSortValue: (r) => r.entry_price },
   { key: 'collateral_required', label: 'Collateral', sortable: true, getSortValue: (r) => r.collateral_required },
+  { key: 'annualized_roc', label: 'Annualized ROC', sortable: true, getSortValue: (r) => r.annualized_roc },
   { key: 'entry_date', label: 'Entry Date', sortable: true, getSortValue: (r) => r.entry_date },
   { key: 'strategy_group', label: 'Strategy', sortable: true, getSortValue: (r) => r.strategy_group || '' },
   { key: 'source', label: 'Source', sortable: true, getSortValue: (r) => r.source },
@@ -492,6 +493,13 @@ export default function PositionLogPage() {
                     <td className="num">
                       {row.collateral_required !== null && row.collateral_required !== undefined
                         ? `$${row.collateral_required.toLocaleString()}`
+                        : '—'}
+                    </td>
+                  )}
+                  {!hidden.has('annualized_roc') && (
+                    <td className="num">
+                      {row.annualized_roc !== null && row.annualized_roc !== undefined
+                        ? `${row.annualized_roc.toFixed(1)}%`
                         : '—'}
                     </td>
                   )}
