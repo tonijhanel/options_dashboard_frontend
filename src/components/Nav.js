@@ -10,6 +10,7 @@ const LINKS = [
   { to: '/tsp-scan', label: 'Bulk Scan' },
   { to: '/csp-scan', label: 'Single Position Scan' },
   { to: '/pnl-history', label: 'P&L History' },
+  { to: '/ticker-registry', label: 'Ticker Registry' },
 ];
 
 export default function Nav() {
