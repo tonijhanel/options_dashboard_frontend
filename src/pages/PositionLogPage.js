@@ -19,6 +19,7 @@ const OPEN_COLUMNS = [
   { key: 'entry_price', label: 'Entry Price', sortable: true, getSortValue: (r) => r.entry_price },
   { key: 'collateral_required', label: 'Collateral', sortable: true, getSortValue: (r) => r.collateral_required },
   { key: 'entry_date', label: 'Entry Date', sortable: true, getSortValue: (r) => r.entry_date },
+  { key: 'strategy_group', label: 'Strategy', sortable: true, getSortValue: (r) => r.strategy_group || '' },
   { key: 'source', label: 'Source', sortable: true, getSortValue: (r) => r.source },
 ];
 
@@ -96,6 +97,7 @@ function RowActions({ row, onUpdated, isClosed }) {
   const [longEntryPrice, setLongEntryPrice] = useState(row.long_entry_price ?? '');
   const [shortClosePrice, setShortClosePrice] = useState(row.short_close_price ?? '');
   const [longClosePrice, setLongClosePrice] = useState(row.long_close_price ?? '');
+  const [strategyGroup, setStrategyGroup] = useState(row.strategy_group ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -131,6 +133,7 @@ function RowActions({ row, onUpdated, isClosed }) {
               long_strike: longStrike !== '' ? Number(longStrike) : undefined,
               short_entry_price: shortEntryPrice !== '' ? Number(shortEntryPrice) : undefined,
               long_entry_price: longEntryPrice !== '' ? Number(longEntryPrice) : undefined,
+              strategy_group: strategyGroup || undefined,
             }
           : {}),
       };
@@ -264,6 +267,16 @@ function RowActions({ row, onUpdated, isClosed }) {
             <label>
               Long Entry Price
               <input type="number" step="0.01" value={longEntryPrice} onChange={(e) => setLongEntryPrice(e.target.value)} className={styles.formInputSmall} />
+            </label>
+            <label>
+              Strategy Group
+              <input
+                type="text"
+                value={strategyGroup}
+                onChange={(e) => setStrategyGroup(e.target.value)}
+                className={styles.formInput}
+                placeholder="e.g. SPXW 2026-07-16 IC - shared label for a related iron condor half"
+              />
             </label>
           </>
         )}
@@ -484,6 +497,9 @@ export default function PositionLogPage() {
                   )}
                   {!hidden.has('entry_date') && (
                     <td>{row.entry_date ? new Date(row.entry_date).toLocaleDateString() : '—'}</td>
+                  )}
+                  {!hidden.has('strategy_group') && (
+                    <td className={row.strategy_group ? '' : tableStyles.muted}>{row.strategy_group || '—'}</td>
                   )}
                   {!hidden.has('source') && <td className={tableStyles.muted}>{row.source}</td>}
                   {statusView === 'closed' && (
