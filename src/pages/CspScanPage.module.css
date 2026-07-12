@@ -73,6 +73,11 @@
   flex-wrap: wrap;
 }
 
+.correlationWarning {
+  color: var(--accent);
+  font-weight: 500;
+}
+
 .illiquidRow {
   opacity: 0.5;
 }

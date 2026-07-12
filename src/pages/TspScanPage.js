@@ -49,9 +49,14 @@ const COLUMNS = [
     render: (p) => <TradeSignalBadge signal={p.trade_signal} /> },
   { key: 'trade_signal_reason', label: 'Reason', sortable: true, getSortValue: (p) => p.trade_signal_reason || '',
     render: (p) => p.trade_signal_reason },
+  { key: 'correlation_flags', label: 'Correlated With', sortable: true,
+    getSortValue: (p) => (p.correlation_flags || []).length ? Math.max(...p.correlation_flags.map(f => Math.abs(f.correlation))) : 0,
+    render: (p) => (p.correlation_flags && p.correlation_flags.length > 0)
+      ? p.correlation_flags.map(f => `${f.ticker} (${f.correlation.toFixed(2)})`).join(', ')
+      : '—' },
 ];
 
-const NON_NUMERIC_COLUMNS = ['sector', 'roc_tier', 'trade_signal', 'trade_signal_reason', 'group'];
+const NON_NUMERIC_COLUMNS = ['sector', 'roc_tier', 'trade_signal', 'trade_signal_reason', 'group', 'correlation_flags'];
 
 export default function TspScanPage() {
   const { data, error, loading, refetch } = useApiData(getTspPortfolio, 'tsp-portfolio');

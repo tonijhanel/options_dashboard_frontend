@@ -186,6 +186,11 @@ export default function CspScanPage() {
             <span>
               Realized Vol: <span className="num">{data.realized_vol_20d_pct?.toFixed(1)}%</span>
             </span>
+            {data.correlation_flags && data.correlation_flags.length > 0 && (
+              <span className={styles.correlationWarning}>
+                Correlated with: {data.correlation_flags.map(f => `${f.ticker} (${f.correlation.toFixed(2)})`).join(', ')} - already open
+              </span>
+            )}
           </div>
 
           {sorted.length === 0 ? (
