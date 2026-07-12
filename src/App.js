@@ -7,6 +7,7 @@ import PortfolioOverviewPage from './pages/PortfolioOverviewPage';
 import NewsSentimentPage from './pages/NewsSentimentPage';
 import PositionLogPage from './pages/PositionLogPage';
 import PnlHistoryPage from './pages/PnlHistoryPage';
+import TickerRegistryPage from './pages/TickerRegistryPage';
 import styles from './App.module.css';
 
 export default function App() {
@@ -22,6 +23,7 @@ export default function App() {
           <Route path="/news-sentiment" element={<NewsSentimentPage />} />
           <Route path="/position-log" element={<PositionLogPage />} />
           <Route path="/pnl-history" element={<PnlHistoryPage />} />
+          <Route path="/ticker-registry" element={<TickerRegistryPage />} />
         </Routes>
       </main>
     </BrowserRouter>
