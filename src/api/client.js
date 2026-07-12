@@ -107,6 +107,13 @@ export function deleteTicker(ticker) {
   return request(`/tickers/${ticker}`, { method: 'DELETE' });
 }
 
+export function classifyTicker(ticker) {
+  return request('/tickers/classify', {
+    method: 'POST',
+    body: JSON.stringify({ ticker }),
+  });
+}
+
 export function getSchwabReconnectUrl() {
   return request('/schwab-reconnect-url');
 }
