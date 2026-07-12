@@ -84,14 +84,13 @@ export default function TickerRegistryPage() {
     setAnalyzeError(null);
     try {
       const result = await classifyTicker(form.ticker.trim().toUpperCase());
-      // Pre-fills the form for review - does NOT save anything. Sector
-      // is deliberately left as whatever's already typed, since the
-      // webhook doesn't classify that field at all.
+      // Pre-fills the form for review - does NOT save anything.
       setForm((f) => ({
         ...f,
         group: result.group || f.group,
         target_delta: result.target_delta ?? f.target_delta,
         default_contracts: result.default_contracts ?? f.default_contracts,
+        sector: result.sector || f.sector,
         rationale: result.rationale || f.rationale,
       }));
     } catch (err) {
