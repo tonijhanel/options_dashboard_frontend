@@ -4,6 +4,9 @@ import { getPresetRange, PRESETS } from '../lib/dateRanges';
 import { LoadingView, ErrorView, EmptyView } from '../components/StateViews';
 import SummaryBar, { formatCurrency } from '../components/SummaryBar';
 import PageHeader from '../components/PageHeader';
+import SortableHeader from '../components/SortableHeader';
+import ColumnPicker, { useColumnVisibility } from '../components/ColumnPicker';
+import { useSortableData } from '../lib/useSortableData';
 import { formatDate } from '../lib/formatDate';
 import tableStyles from '../components/Table.module.css';
 import styles from './PnlHistoryPage.module.css';
@@ -13,6 +16,172 @@ const TYPE_FILTERS = [
   { key: 'naked_put', label: 'Cash-Secured Puts' },
   { key: 'vertical_spread', label: 'Spreads' },
 ];
+
+const OPENED_COLUMNS = [
+  { key: 'ticker', label: 'Ticker', alwaysVisible: true, sortable: true, getSortValue: (p) => p.ticker,
+    render: (p) => <span className={styles.ticker}>{p.ticker}</span> },
+  { key: 'position_type', label: 'Type', sortable: true, getSortValue: (p) => p.position_type,
+    render: (p) => (p.position_type === 'vertical_spread' ? 'Spread' : 'Naked Put') },
+  { key: 'strike', label: 'Strike', sortable: true, getSortValue: (p) => p.short_strike ?? p.strike,
+    render: (p) => (p.position_type === 'vertical_spread' ? `${p.short_strike}/${p.long_strike}` : p.strike?.toFixed(2)) },
+  { key: 'contracts', label: 'Contracts', sortable: true, getSortValue: (p) => p.contracts,
+    render: (p) => p.contracts },
+  { key: 'entry_price', label: 'Entry Price', sortable: true, getSortValue: (p) => p.entry_price,
+    render: (p) => p.entry_price?.toFixed(2) },
+  { key: 'entry_date', label: 'Entry Date', sortable: true, getSortValue: (p) => p.entry_date,
+    render: (p) => formatDate(p.entry_date) },
+  { key: 'premium', label: 'Premium', sortable: true, getSortValue: (p) => p.premium,
+    render: (p) => (p.premium !== null ? formatCurrency(p.premium) : '—') },
+  { key: 'roc', label: 'ROC', sortable: true, getSortValue: (p) => p.roc,
+    render: (p) => (p.roc != null ? `${p.roc.toFixed(1)}%` : '—') },
+  { key: 'annualized_roc', label: 'Annualized ROC', sortable: true, getSortValue: (p) => p.annualized_roc,
+    render: (p) => (p.annualized_roc != null ? `${p.annualized_roc.toFixed(1)}%` : '—') },
+  { key: 'status', label: 'Status', sortable: true, getSortValue: (p) => p.status,
+    render: (p) => p.status },
+];
+
+const CLOSED_COLUMNS = [
+  { key: 'ticker', label: 'Ticker', alwaysVisible: true, sortable: true, getSortValue: (p) => p.ticker,
+    render: (p) => <span className={styles.ticker}>{p.ticker}</span> },
+  { key: 'entry_price', label: 'Entry Price', sortable: true, getSortValue: (p) => p.entry_price,
+    render: (p) => p.entry_price?.toFixed(2) },
+  { key: 'closed_price', label: 'Closed Price', sortable: true, getSortValue: (p) => p.closed_price,
+    render: (p) => (p.closed_price !== null ? p.closed_price.toFixed(2) : '—') },
+  { key: 'closed_date', label: 'Closed Date', sortable: true, getSortValue: (p) => p.closed_date,
+    render: (p) => formatDate(p.closed_date) },
+  { key: 'close_reason', label: 'Close Reason', sortable: true, getSortValue: (p) => p.close_reason || '',
+    render: (p) => p.close_reason || 'not recorded' },
+  { key: 'roc', label: 'ROC', sortable: true, getSortValue: (p) => p.roc,
+    render: (p) => (p.roc != null ? `${p.roc.toFixed(1)}%` : '—') },
+  { key: 'annualized_roc', label: 'Annualized ROC', sortable: true, getSortValue: (p) => p.annualized_roc,
+    render: (p) => (p.annualized_roc != null ? `${p.annualized_roc.toFixed(1)}%` : '—') },
+  { key: 'realized_pnl', label: 'P&L', sortable: true, getSortValue: (p) => p.realized_pnl,
+    render: (p) => (p.realized_pnl !== null ? formatCurrency(p.realized_pnl) : 'missing price') },
+];
+
+function OpenedPositionsTable({ positions }) {
+  const { hidden, toggle, visibleColumns } = useColumnVisibility(OPENED_COLUMNS, 'pnlHistoryOpenedTable');
+  const { sorted, sortKey, direction, requestSort } = useSortableData(
+    positions,
+    (row, key) => OPENED_COLUMNS.find((c) => c.key === key).getSortValue(row)
+  );
+
+  return (
+    <section className={styles.section}>
+      <div className={styles.sectionHeader}>
+        <h2 className={styles.sectionTitle}>Positions Opened in Range</h2>
+        <ColumnPicker columns={OPENED_COLUMNS} hidden={hidden} onToggle={toggle} />
+      </div>
+      {sorted.length === 0 ? (
+        <EmptyView message="No positions opened in this range." />
+      ) : (
+        <div className={tableStyles.tableWrap}>
+          <table className={tableStyles.table}>
+            <thead>
+              <tr>
+                {visibleColumns.map((col) => (
+                  <SortableHeader
+                    key={col.key}
+                    label={col.label}
+                    columnKey={col.key}
+                    sortable={col.sortable}
+                    sortKey={sortKey}
+                    direction={direction}
+                    onSort={requestSort}
+                  />
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((p) => (
+                <tr key={p.id}>
+                  {visibleColumns.map((col) => (
+                    <td
+                      key={col.key}
+                      className={
+                        col.key === 'status'
+                          ? (p.status === 'open' ? styles.statusOpen : tableStyles.muted)
+                          : col.key === 'close_reason' || col.key === 'position_type'
+                            ? ''
+                            : col.key === 'ticker'
+                              ? ''
+                              : 'num'
+                      }
+                    >
+                      {col.render(p)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ClosedPositionsTable({ positions }) {
+  const { hidden, toggle, visibleColumns } = useColumnVisibility(CLOSED_COLUMNS, 'pnlHistoryClosedTable');
+  const { sorted, sortKey, direction, requestSort } = useSortableData(
+    positions,
+    (row, key) => CLOSED_COLUMNS.find((c) => c.key === key).getSortValue(row)
+  );
+
+  return (
+    <section className={styles.section}>
+      <div className={styles.sectionHeader}>
+        <h2 className={styles.sectionTitle}>Positions Closed in Range</h2>
+        <ColumnPicker columns={CLOSED_COLUMNS} hidden={hidden} onToggle={toggle} />
+      </div>
+      {sorted.length === 0 ? (
+        <EmptyView message="No positions closed in this range." />
+      ) : (
+        <div className={tableStyles.tableWrap}>
+          <table className={tableStyles.table}>
+            <thead>
+              <tr>
+                {visibleColumns.map((col) => (
+                  <SortableHeader
+                    key={col.key}
+                    label={col.label}
+                    columnKey={col.key}
+                    sortable={col.sortable}
+                    sortKey={sortKey}
+                    direction={direction}
+                    onSort={requestSort}
+                  />
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((p) => (
+                <tr key={p.id}>
+                  {visibleColumns.map((col) => (
+                    <td
+                      key={col.key}
+                      className={
+                        col.key === 'realized_pnl'
+                          ? `num ${p.realized_pnl === null ? tableStyles.muted : p.realized_pnl >= 0 ? tableStyles.positive : tableStyles.negative}`
+                          : col.key === 'close_reason'
+                            ? (p.close_reason ? '' : tableStyles.muted)
+                            : col.key === 'ticker' || col.key === 'closed_date'
+                              ? ''
+                              : 'num'
+                      }
+                    >
+                      {col.render(p)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
 
 export default function PnlHistoryPage() {
   const [range, setRange] = useState(() => getPresetRange('this_month'));
@@ -40,14 +209,6 @@ export default function PnlHistoryPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Filtered view, recomputed client-side from whatever's already been
-  // fetched - no new API call needed, since every row already carries
-  // position_type. NOTE: spread entry_price appears to be the whole
-  // dollar value of the position (not a per-share premium like naked
-  // puts), so its "premium" numbers are currently unreliable regardless
-  // of this filter - full spread P&L modeling is still separately on the
-  // roadmap. This filter's real value today is letting CSP numbers be
-  // viewed on their own, not "fixing" the spread math.
   const filtered = useMemo(() => {
     if (!data) return null;
     const matchesFilter = (p) => typeFilter === 'all' || p.position_type === typeFilter;
@@ -143,11 +304,6 @@ export default function PnlHistoryPage() {
           </button>
         ))}
         {typeFilter === 'vertical_spread' && filtered && (() => {
-          // Only warn about rows that ACTUALLY lack per-leg data - a
-          // spread logged since per-leg tracking was added has real
-          // numbers; only older rows (missing short_entry_price/
-          // long_entry_price) fall back to the less accurate
-          // approximation.
           const allSpreadRows = [...filtered.premium_collected.positions, ...filtered.realized_pnl.positions];
           const hasLegacyRow = allSpreadRows.some(
             (p) => p.short_entry_price === null || p.short_entry_price === undefined
@@ -185,89 +341,8 @@ export default function PnlHistoryPage() {
             ]}
           />
 
-          <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Positions Opened in Range</h2>
-            {filtered.premium_collected.positions.length === 0 ? (
-              <EmptyView message="No positions opened in this range." />
-            ) : (
-              <div className={tableStyles.tableWrap}>
-                <table className={tableStyles.table}>
-                  <thead>
-                    <tr>
-                      <th>Ticker</th>
-                      <th>Type</th>
-                      <th>Strike</th>
-                      <th>Contracts</th>
-                      <th>Entry Price</th>
-                      <th>Entry Date</th>
-                      <th>Premium</th>
-                      <th>ROC</th>
-                      <th>Annualized ROC</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.premium_collected.positions.map((p) => (
-                      <tr key={p.id}>
-                        <td className={styles.ticker}>{p.ticker}</td>
-                        <td>{p.position_type === 'vertical_spread' ? 'Spread' : 'Naked Put'}</td>
-                        <td className="num">
-                          {p.position_type === 'vertical_spread' ? `${p.short_strike}/${p.long_strike}` : p.strike?.toFixed(2)}
-                        </td>
-                        <td className="num">{p.contracts}</td>
-                        <td className="num">{p.entry_price?.toFixed(2)}</td>
-                        <td>{formatDate(p.entry_date)}</td>
-                        <td className="num">{p.premium !== null ? formatCurrency(p.premium) : '—'}</td>
-                        <td className="num">{p.roc != null ? `${p.roc.toFixed(1)}%` : '—'}</td>
-                        <td className="num">{p.annualized_roc != null ? `${p.annualized_roc.toFixed(1)}%` : '—'}</td>
-                        <td className={p.status === 'open' ? styles.statusOpen : tableStyles.muted}>{p.status}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-
-          <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Positions Closed in Range</h2>
-            {filtered.realized_pnl.positions.length === 0 ? (
-              <EmptyView message="No positions closed in this range." />
-            ) : (
-              <div className={tableStyles.tableWrap}>
-                <table className={tableStyles.table}>
-                  <thead>
-                    <tr>
-                      <th>Ticker</th>
-                      <th>Entry Price</th>
-                      <th>Closed Price</th>
-                      <th>Closed Date</th>
-                      <th>Close Reason</th>
-                      <th>ROC</th>
-                      <th>Annualized ROC</th>
-                      <th>P&amp;L</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.realized_pnl.positions.map((p) => (
-                      <tr key={p.id}>
-                        <td className={styles.ticker}>{p.ticker}</td>
-                        <td className="num">{p.entry_price?.toFixed(2)}</td>
-                        <td className="num">{p.closed_price !== null ? p.closed_price.toFixed(2) : '—'}</td>
-                        <td>{formatDate(p.closed_date)}</td>
-                        <td className={p.close_reason ? '' : tableStyles.muted}>{p.close_reason || 'not recorded'}</td>
-                        <td className="num">{p.roc != null ? `${p.roc.toFixed(1)}%` : '—'}</td>
-                        <td className="num">{p.annualized_roc != null ? `${p.annualized_roc.toFixed(1)}%` : '—'}</td>
-                        <td className={`num ${p.realized_pnl === null ? tableStyles.muted : p.realized_pnl >= 0 ? tableStyles.positive : tableStyles.negative}`}>
-                          {p.realized_pnl !== null ? formatCurrency(p.realized_pnl) : 'missing price'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
+          <OpenedPositionsTable positions={filtered.premium_collected.positions} />
+          <ClosedPositionsTable positions={filtered.realized_pnl.positions} />
         </>
       )}
     </div>
