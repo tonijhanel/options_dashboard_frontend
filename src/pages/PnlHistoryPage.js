@@ -4,6 +4,7 @@ import { getPresetRange, PRESETS } from '../lib/dateRanges';
 import { LoadingView, ErrorView, EmptyView } from '../components/StateViews';
 import SummaryBar, { formatCurrency } from '../components/SummaryBar';
 import PageHeader from '../components/PageHeader';
+import { formatDate } from '../lib/formatDate';
 import tableStyles from '../components/Table.module.css';
 import styles from './PnlHistoryPage.module.css';
 
@@ -200,6 +201,8 @@ export default function PnlHistoryPage() {
                       <th>Entry Price</th>
                       <th>Entry Date</th>
                       <th>Premium</th>
+                      <th>ROC</th>
+                      <th>Annualized ROC</th>
                       <th>Status</th>
                     </tr>
                   </thead>
@@ -213,8 +216,10 @@ export default function PnlHistoryPage() {
                         </td>
                         <td className="num">{p.contracts}</td>
                         <td className="num">{p.entry_price?.toFixed(2)}</td>
-                        <td>{p.entry_date ? new Date(p.entry_date).toLocaleDateString() : '—'}</td>
+                        <td>{formatDate(p.entry_date)}</td>
                         <td className="num">{p.premium !== null ? formatCurrency(p.premium) : '—'}</td>
+                        <td className="num">{p.roc != null ? `${p.roc.toFixed(1)}%` : '—'}</td>
+                        <td className="num">{p.annualized_roc != null ? `${p.annualized_roc.toFixed(1)}%` : '—'}</td>
                         <td className={p.status === 'open' ? styles.statusOpen : tableStyles.muted}>{p.status}</td>
                       </tr>
                     ))}
@@ -238,6 +243,8 @@ export default function PnlHistoryPage() {
                       <th>Closed Price</th>
                       <th>Closed Date</th>
                       <th>Close Reason</th>
+                      <th>ROC</th>
+                      <th>Annualized ROC</th>
                       <th>P&amp;L</th>
                     </tr>
                   </thead>
@@ -247,8 +254,10 @@ export default function PnlHistoryPage() {
                         <td className={styles.ticker}>{p.ticker}</td>
                         <td className="num">{p.entry_price?.toFixed(2)}</td>
                         <td className="num">{p.closed_price !== null ? p.closed_price.toFixed(2) : '—'}</td>
-                        <td>{p.closed_date ? new Date(p.closed_date).toLocaleDateString() : '—'}</td>
+                        <td>{formatDate(p.closed_date)}</td>
                         <td className={p.close_reason ? '' : tableStyles.muted}>{p.close_reason || 'not recorded'}</td>
+                        <td className="num">{p.roc != null ? `${p.roc.toFixed(1)}%` : '—'}</td>
+                        <td className="num">{p.annualized_roc != null ? `${p.annualized_roc.toFixed(1)}%` : '—'}</td>
                         <td className={`num ${p.realized_pnl === null ? tableStyles.muted : p.realized_pnl >= 0 ? tableStyles.positive : tableStyles.negative}`}>
                           {p.realized_pnl !== null ? formatCurrency(p.realized_pnl) : 'missing price'}
                         </td>

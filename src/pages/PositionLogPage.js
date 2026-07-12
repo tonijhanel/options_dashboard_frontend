@@ -5,6 +5,7 @@ import { LoadingView, ErrorView, EmptyView } from '../components/StateViews';
 import PageHeader from '../components/PageHeader';
 import SortableHeader from '../components/SortableHeader';
 import ColumnPicker, { useColumnVisibility } from '../components/ColumnPicker';
+import { formatDate } from '../lib/formatDate';
 import tableStyles from '../components/Table.module.css';
 import styles from './PositionLogPage.module.css';
 
@@ -18,6 +19,7 @@ const OPEN_COLUMNS = [
   { key: 'contracts', label: 'Contracts', sortable: true, getSortValue: (r) => r.contracts },
   { key: 'entry_price', label: 'Entry Price', sortable: true, getSortValue: (r) => r.entry_price },
   { key: 'collateral_required', label: 'Collateral', sortable: true, getSortValue: (r) => r.collateral_required },
+  { key: 'roc', label: 'ROC', sortable: true, getSortValue: (r) => r.roc },
   { key: 'annualized_roc', label: 'Annualized ROC', sortable: true, getSortValue: (r) => r.annualized_roc },
   { key: 'entry_date', label: 'Entry Date', sortable: true, getSortValue: (r) => r.entry_date },
   { key: 'strategy_group', label: 'Strategy', sortable: true, getSortValue: (r) => r.strategy_group || '' },
@@ -496,6 +498,11 @@ export default function PositionLogPage() {
                         : '—'}
                     </td>
                   )}
+                  {!hidden.has('roc') && (
+                    <td className="num">
+                      {row.roc !== null && row.roc !== undefined ? `${row.roc.toFixed(1)}%` : '—'}
+                    </td>
+                  )}
                   {!hidden.has('annualized_roc') && (
                     <td className="num">
                       {row.annualized_roc !== null && row.annualized_roc !== undefined
@@ -504,7 +511,7 @@ export default function PositionLogPage() {
                     </td>
                   )}
                   {!hidden.has('entry_date') && (
-                    <td>{row.entry_date ? new Date(row.entry_date).toLocaleDateString() : '—'}</td>
+                    <td>{formatDate(row.entry_date)}</td>
                   )}
                   {!hidden.has('strategy_group') && (
                     <td className={row.strategy_group ? '' : tableStyles.muted}>{row.strategy_group || '—'}</td>
@@ -513,7 +520,7 @@ export default function PositionLogPage() {
                   {statusView === 'closed' && (
                     <>
                       {!hidden.has('closed_date') && (
-                        <td>{row.closed_date ? new Date(row.closed_date).toLocaleDateString() : '—'}</td>
+                        <td>{formatDate(row.closed_date)}</td>
                       )}
                       {!hidden.has('closed_price') && (
                         <td className="num">{row.closed_price !== null && row.closed_price !== undefined ? row.closed_price.toFixed(2) : '—'}</td>
