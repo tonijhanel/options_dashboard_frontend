@@ -13,7 +13,7 @@
 
 .table th {
   text-align: left;
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-2) var(--space-3);
   font-weight: 600;
   font-size: 11px;
   text-transform: uppercase;
@@ -24,7 +24,7 @@
 }
 
 .table td {
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--border-subtle);
   white-space: nowrap;
 }
