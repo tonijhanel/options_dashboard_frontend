@@ -7,6 +7,23 @@
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
 }
 
+.topRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.donutCol {
+  flex: 3 1 480px;
+  min-width: 0;
+}
+
+.calendarCol {
+  flex: 1 1 260px;
+  min-width: 260px;
+}
+
 .sectionHeader {
   display: flex;
   align-items: center;

@@ -54,17 +54,22 @@ export default function PortfolioOverviewPage() {
   }, [data]);
 
   const positions = data?.positions || [];
+  const showCalendarInRow = data && positions.length > 0;
+
+  const calendarSection = (
+    <>
+      <h2 className={styles.sectionTitle}>Market Calendar</h2>
+      {calendarLoading && !calendar && <LoadingView label="Loading market calendar" />}
+      {calendarError && !calendar && <ErrorView message={calendarError} onRetry={refetchCalendar} />}
+      {calendar && <MarketCalendarWidget calendar={calendar} />}
+    </>
+  );
 
   return (
     <div>
       <PageHeader title="Portfolio Overview" onRefresh={refetch} refreshing={loading} />
 
-      <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>Market Calendar</h2>
-        {calendarLoading && !calendar && <LoadingView label="Loading market calendar" />}
-        {calendarError && !calendar && <ErrorView message={calendarError} onRetry={refetchCalendar} />}
-        {calendar && <MarketCalendarWidget calendar={calendar} />}
-      </section>
+      {!showCalendarInRow && <section className={styles.section}>{calendarSection}</section>}
 
       {loading && !data && <LoadingView label="Loading portfolio overview" />}
       {error && !data && <ErrorView message={error} onRetry={refetch} />}
@@ -77,24 +82,28 @@ export default function PortfolioOverviewPage() {
             <EmptyView message="No open positions to summarize yet." />
           ) : (
             <>
-              <section className={styles.section}>
-                <div className={styles.sectionHeader}>
-                  <h2 className={styles.sectionTitle}>Portfolio Sector Concentration</h2>
-                  <div className={styles.metricToggle}>
-                    {Object.entries(SECTOR_METRICS).map(([key, m]) => (
-                      <button
-                        key={key}
-                        className={metric === key ? styles.toggleActive : styles.toggle}
-                        onClick={() => setMetric(key)}
-                      >
-                        {m.label}
-                      </button>
-                    ))}
+              <div className={styles.topRow}>
+                <section className={`${styles.section} ${styles.donutCol}`}>
+                  <div className={styles.sectionHeader}>
+                    <h2 className={styles.sectionTitle}>Portfolio Sector Concentration</h2>
+                    <div className={styles.metricToggle}>
+                      {Object.entries(SECTOR_METRICS).map(([key, m]) => (
+                        <button
+                          key={key}
+                          className={metric === key ? styles.toggleActive : styles.toggle}
+                          onClick={() => setMetric(key)}
+                        >
+                          {m.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-                <p className={styles.metricDescription}>{SECTOR_METRICS[metric].description}</p>
-                <SectorDonut data={sectorData} />
-              </section>
+                  <p className={styles.metricDescription}>{SECTOR_METRICS[metric].description}</p>
+                  <SectorDonut data={sectorData} />
+                </section>
+
+                <section className={`${styles.section} ${styles.calendarCol}`}>{calendarSection}</section>
+              </div>
 
               <section className={styles.section}>
                 <h2 className={styles.sectionTitle}>Downside Safety Cushions &amp; Assignment Risk</h2>
