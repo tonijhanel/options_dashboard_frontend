@@ -12,13 +12,14 @@
   list-style: none;
   margin: 0;
   padding: 0;
+  max-width: 480px;
 }
 
 .item {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-1) 0;
+  padding: 6px 0;
   border-bottom: 1px solid var(--border-subtle);
   font-size: 13px;
   line-height: 1.3;
