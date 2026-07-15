@@ -5,8 +5,8 @@ const COLORS = ['#5ba3b0', '#e8b86d', '#e08e6d', '#b399d4', '#8fbc74', '#7a9fd4'
 
 export default function SectorDonut({ data }) {
   return (
-    <ResponsiveContainer width="100%" height={360}>
-      <PieChart>
+    <ResponsiveContainer width="100%" height={440}>
+      <PieChart margin={{ top: 24, right: 24, bottom: 24, left: 24 }}>
         <Pie
           data={data}
           dataKey="value"
