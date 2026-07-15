@@ -1,12 +1,12 @@
 .form {
   display: flex;
   align-items: flex-end;
-  gap: var(--space-4);
-  padding: var(--space-4) var(--space-5);
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  margin-bottom: var(--space-5);
+  margin-bottom: var(--space-4);
   flex-wrap: wrap;
 }
 
@@ -66,8 +66,8 @@
 
 .contextRow {
   display: flex;
-  gap: var(--space-5);
-  margin-bottom: var(--space-4);
+  gap: var(--space-4);
+  margin-bottom: var(--space-3);
   font-size: 13px;
   color: var(--text-secondary);
   flex-wrap: wrap;
@@ -85,5 +85,5 @@
 .tableToolbar {
   display: flex;
   justify-content: flex-end;
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--space-2);
 }

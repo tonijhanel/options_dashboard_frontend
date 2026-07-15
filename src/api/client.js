@@ -92,6 +92,10 @@ export function getSchwabTokenHealth() {
   return request('/schwab-token-health');
 }
 
+export function getMarketCalendar(daysAhead = 30) {
+  return request(`/market-calendar?days_ahead=${daysAhead}`);
+}
+
 export function getTickers() {
   return request('/tickers');
 }

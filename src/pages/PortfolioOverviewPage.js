@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { getPositions } from '../api/client';
+import { getPositions, getMarketCalendar } from '../api/client';
 import { useApiData } from '../lib/useApiData';
 import { computeCushionPct, computeAssignmentProbPct, assignmentRiskTone } from '../lib/positionRisk';
 import { useNewsSentiment } from '../lib/useNewsSentiment';
@@ -9,6 +9,7 @@ import PageHeader from '../components/PageHeader';
 import SectorDonut from '../components/SectorDonut';
 import CushionBar from '../components/CushionBar';
 import InsightsList from '../components/InsightsList';
+import MarketCalendarWidget from '../components/MarketCalendarWidget';
 import styles from './PortfolioOverviewPage.module.css';
 
 const SECTOR_METRICS = {
@@ -27,6 +28,12 @@ const SECTOR_METRICS = {
 
 export default function PortfolioOverviewPage() {
   const { data, error, loading, refetch } = useApiData(getPositions, 'positions');
+  const {
+    data: calendar,
+    error: calendarError,
+    loading: calendarLoading,
+    refetch: refetchCalendar,
+  } = useApiData(getMarketCalendar, 'marketCalendar');
   const { getEntry: getNewsEntry } = useNewsSentiment();
   const [metric, setMetric] = useState('premium');
 
@@ -46,61 +53,71 @@ export default function PortfolioOverviewPage() {
     return generatePortfolioInsights(data.positions);
   }, [data]);
 
-  if (loading && !data) return <LoadingView label="Loading portfolio overview" />;
-  if (error && !data) return <ErrorView message={error} onRetry={refetch} />;
-  if (!data) return null;
-
-  const positions = data.positions || [];
+  const positions = data?.positions || [];
 
   return (
     <div>
       <PageHeader title="Portfolio Overview" onRefresh={refetch} refreshing={loading} />
 
-      {error && <ErrorView message={error} onRetry={refetch} />}
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Market Calendar</h2>
+        {calendarLoading && !calendar && <LoadingView label="Loading market calendar" />}
+        {calendarError && !calendar && <ErrorView message={calendarError} onRetry={refetchCalendar} />}
+        {calendar && <MarketCalendarWidget calendar={calendar} />}
+      </section>
 
-      {positions.length === 0 ? (
-        <EmptyView message="No open positions to summarize yet." />
-      ) : (
+      {loading && !data && <LoadingView label="Loading portfolio overview" />}
+      {error && !data && <ErrorView message={error} onRetry={refetch} />}
+
+      {data && (
         <>
-          <section className={styles.section}>
-            <div className={styles.sectionHeader}>
-              <h2 className={styles.sectionTitle}>Portfolio Sector Concentration</h2>
-              <div className={styles.metricToggle}>
-                {Object.entries(SECTOR_METRICS).map(([key, m]) => (
-                  <button
-                    key={key}
-                    className={metric === key ? styles.toggleActive : styles.toggle}
-                    onClick={() => setMetric(key)}
-                  >
-                    {m.label}
-                  </button>
+          {error && <ErrorView message={error} onRetry={refetch} />}
+
+          {positions.length === 0 ? (
+            <EmptyView message="No open positions to summarize yet." />
+          ) : (
+            <>
+              <section className={styles.section}>
+                <div className={styles.sectionHeader}>
+                  <h2 className={styles.sectionTitle}>Portfolio Sector Concentration</h2>
+                  <div className={styles.metricToggle}>
+                    {Object.entries(SECTOR_METRICS).map(([key, m]) => (
+                      <button
+                        key={key}
+                        className={metric === key ? styles.toggleActive : styles.toggle}
+                        onClick={() => setMetric(key)}
+                      >
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <p className={styles.metricDescription}>{SECTOR_METRICS[metric].description}</p>
+                <SectorDonut data={sectorData} />
+              </section>
+
+              <section className={styles.section}>
+                <h2 className={styles.sectionTitle}>Downside Safety Cushions &amp; Assignment Risk</h2>
+                {positions.map((p, i) => (
+                  <CushionBar
+                    key={`${p.ticker}-${p.strike}-${i}`}
+                    ticker={p.ticker}
+                    strike={p.strike}
+                    spot={p.spot}
+                    cushionPct={computeCushionPct(p.spot, p.strike)}
+                    assignmentProbPct={computeAssignmentProbPct(p.spot, p.strike, p.dte, p.iv)}
+                    tone={assignmentRiskTone(computeAssignmentProbPct(p.spot, p.strike, p.dte, p.iv))}
+                    getNewsEntry={getNewsEntry}
+                  />
                 ))}
-              </div>
-            </div>
-            <p className={styles.metricDescription}>{SECTOR_METRICS[metric].description}</p>
-            <SectorDonut data={sectorData} />
-          </section>
+              </section>
 
-          <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Downside Safety Cushions &amp; Assignment Risk</h2>
-            {positions.map((p, i) => (
-              <CushionBar
-                key={`${p.ticker}-${p.strike}-${i}`}
-                ticker={p.ticker}
-                strike={p.strike}
-                spot={p.spot}
-                cushionPct={computeCushionPct(p.spot, p.strike)}
-                assignmentProbPct={computeAssignmentProbPct(p.spot, p.strike, p.dte, p.iv)}
-                tone={assignmentRiskTone(computeAssignmentProbPct(p.spot, p.strike, p.dte, p.iv))}
-                getNewsEntry={getNewsEntry}
-              />
-            ))}
-          </section>
-
-          <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Portfolio Insights</h2>
-            <InsightsList insights={insights} />
-          </section>
+              <section className={styles.section}>
+                <h2 className={styles.sectionTitle}>Portfolio Insights</h2>
+                <InsightsList insights={insights} />
+              </section>
+            </>
+          )}
         </>
       )}
     </div>
