@@ -1,0 +1,13 @@
+.logoutButton {
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-card);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.logoutButton:disabled {
+  opacity: 0.6;
+}

@@ -1,64 +1,93 @@
 /**
  * middleware.js
  * ---------------
- * Simple password gate for the whole site, using Vercel's free-tier
- * Routing Middleware feature (works with any framework, not just
- * Next.js) to implement HTTP Basic Auth by hand. Vercel's own built-in
- * "Password Protection" requires a Pro plan - this achieves the same
- * practical result (a username/password prompt before anything loads)
- * without needing to upgrade.
+ * Replaces the old browser-native Basic Auth popup with a real login
+ * page. This is plain Vercel Edge Middleware (NOT Next.js) - same as
+ * the Basic Auth version this replaces - so this uses only standard Web
+ * APIs (Request/Response/URL, manual cookie parsing), not Next.js
+ * conveniences like NextResponse or request.cookies, which don't exist
+ * in this project at all.
  *
- * Runs on EVERY request, including /api/* - this is deliberate, not an
- * oversight. Once a browser successfully authenticates via a Basic Auth
- * challenge, it automatically re-sends the same credentials on every
- * later same-origin request for the rest of the session, including the
- * app's own fetch() calls to /api/positions etc. So the frontend's API
- * client needs zero changes - the browser handles re-sending the
- * credential on its own.
+ * Uses `jose` for JWT verification rather than `jsonwebtoken`: this runs
+ * in Vercel's Edge Runtime, which does NOT support Node's `crypto`
+ * module that jsonwebtoken depends on - it throws a hard runtime error
+ * ("The Edge Runtime does not support Node.js 'crypto' module"). jose
+ * uses the Web Crypto API instead, which IS available here.
  *
- * Required Vercel environment variables (Settings -> Environment
- * Variables, same place as RAILWAY_API_URL/RAILWAY_API_KEY):
- *   BASIC_AUTH_USER
- *   BASIC_AUTH_PASSWORD
+ * Checks for a valid signed JWT in the `auth_token` cookie on every
+ * request. No valid cookie -> redirect to /login.html. This protects
+ * everything, including the /api/* proxy routes - not just page
+ * navigation - since without this, someone could hit /api/positions
+ * directly and get real data back without ever logging in at all.
+ *
+ * Required Vercel environment variable: JWT_SECRET (a long random
+ * string - used to sign AND verify tokens, must match what
+ * api/auth-login.js uses to sign them).
  */
+
+import { jwtVerify } from 'jose';
 
 export const config = {
   matcher: '/((?!_vercel).*)',
 };
 
-export default function middleware(request) {
-  const expectedUser = process.env.BASIC_AUTH_USER;
-  const expectedPassword = process.env.BASIC_AUTH_PASSWORD;
+const PUBLIC_PATHS = ['/login.html', '/api/auth-login', '/api/auth-logout'];
 
-  // Fail safe, not open: if the env vars aren't set, block everything
-  // with a clear message rather than silently leaving the site
-  // unprotected because of a missing config value.
-  if (!expectedUser || !expectedPassword) {
-    return new Response('BASIC_AUTH_USER/BASIC_AUTH_PASSWORD not configured on this deployment.', {
-      status: 500,
+function isPublicPath(pathname) {
+  if (PUBLIC_PATHS.includes(pathname)) return true;
+  // Vite's built asset files (JS/CSS bundles, fonts) need to load on the
+  // login page itself too, even though login.html is a plain static
+  // file rather than the React app.
+  if (pathname.startsWith('/assets/')) return true;
+  return false;
+}
+
+function getCookie(request, name) {
+  const cookieHeader = request.headers.get('cookie') || '';
+  const match = cookieHeader
+    .split(';')
+    .map((c) => c.trim())
+    .find((c) => c.startsWith(`${name}=`));
+  return match ? decodeURIComponent(match.slice(name.length + 1)) : null;
+}
+
+export default async function middleware(request) {
+  const { pathname } = new URL(request.url);
+
+  if (isPublicPath(pathname)) {
+    return; // let the request through unmodified
+  }
+
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret) {
+    return new Response('JWT_SECRET not configured on this deployment.', { status: 500 });
+  }
+
+  const token = getCookie(request, 'auth_token');
+  const loginUrl = new URL('/login.html', request.url);
+
+  if (!token) {
+    return Response.redirect(loginUrl, 302);
+  }
+
+  try {
+    await jwtVerify(token, new TextEncoder().encode(jwtSecret));
+    return; // valid token - let the request through
+  } catch {
+    // Covers a missing/tampered/expired/wrong-secret token uniformly -
+    // any verification failure sends you back to the login page, and
+    // clears the bad cookie so it doesn't just keep failing silently.
+    //
+    // Response.redirect() produces a Response with IMMUTABLE headers by
+    // spec - trying to .append() a Set-Cookie onto it afterward throws
+    // "TypeError: immutable". Constructing the Response manually instead
+    // allows both Location and Set-Cookie to be set together from the start.
+    return new Response(null, {
+      status: 302,
+      headers: {
+        Location: loginUrl.toString(),
+        'Set-Cookie': 'auth_token=; Path=/; Max-Age=0',
+      },
     });
   }
-
-  const authHeader = request.headers.get('authorization');
-
-  if (authHeader) {
-    const [scheme, encoded] = authHeader.split(' ');
-    if (scheme === 'Basic' && encoded) {
-      const decoded = atob(encoded);
-      const separatorIndex = decoded.indexOf(':');
-      const user = decoded.slice(0, separatorIndex);
-      const password = decoded.slice(separatorIndex + 1);
-
-      if (user === expectedUser && password === expectedPassword) {
-        return; // credentials correct - let the request through
-      }
-    }
-  }
-
-  return new Response('Authentication required', {
-    status: 401,
-    headers: {
-      'WWW-Authenticate': 'Basic realm="Options Dashboard"',
-    },
-  });
 }

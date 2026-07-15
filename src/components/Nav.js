@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import styles from './Nav.module.css';
 import SchwabTokenStatus from './SchwabTokenStatus';
+import LogoutButton from './LogoutButton';
 
 const LINKS = [
   { to: '/', label: 'Positions' },
@@ -27,8 +28,10 @@ export default function Nav() {
           >
             {link.label}
           </NavLink>
+          
         ))}
       </div>
+      <LogoutButton />
       <SchwabTokenStatus />
     </nav>
   );

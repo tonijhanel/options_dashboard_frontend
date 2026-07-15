@@ -1,6 +1,20 @@
 {
   "rewrites": [
-    { "source": "/api/:path*", "destination": "/api/catchall?path=:path*" },
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
+    {
+      "source": "/api/auth-login",
+      "destination": "/api/auth-login"
+    },
+    {
+      "source": "/api/auth-logout",
+      "destination": "/api/auth-logout"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "/api/catchall?path=:path*"
+    },
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
   ]
 }
