@@ -183,3 +183,7 @@ export function closeHedgePosition(id, payload) {
     body: JSON.stringify(payload),
   });
 }
+
+export function getActiveSpreads() {
+  return request('/active-spreads');
+}
