@@ -8,6 +8,7 @@ import NewsSentimentPage from './pages/NewsSentimentPage';
 import PositionLogPage from './pages/PositionLogPage';
 import PnlHistoryPage from './pages/PnlHistoryPage';
 import TickerRegistryPage from './pages/TickerRegistryPage';
+import HedgePage from './pages/HedgePage';
 import styles from './App.module.css';
 
 export default function App() {
@@ -24,6 +25,7 @@ export default function App() {
           <Route path="/position-log" element={<PositionLogPage />} />
           <Route path="/pnl-history" element={<PnlHistoryPage />} />
           <Route path="/ticker-registry" element={<TickerRegistryPage />} />
+          <Route path="/hedge" element={<HedgePage />} />
         </Routes>
       </main>
     </BrowserRouter>

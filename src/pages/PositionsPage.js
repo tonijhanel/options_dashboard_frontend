@@ -188,7 +188,7 @@ export default function PositionsPage() {
 
       {hedgeStatus?.open_position?.roll_due && (
         <div className={styles.hedgeRollBanner}>
-          Hedge roll due - {hedgeStatus.open_position.days_held} days held, recompute and re-enter on Portfolio Overview.
+          Hedge roll due - {hedgeStatus.open_position.days_held} days held, recompute and re-enter on the Hedge page.
         </div>
       )}
 
