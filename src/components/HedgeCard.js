@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   getHedgeInputs, getHedgeSizing, getHedgeStatus, getHedgeSettings, getHedgeSettingsContext,
   updateHedgeSettings, createHedgePosition, closeHedgePosition,
@@ -21,7 +21,7 @@ export default function HedgeCard() {
     useApiData(getHedgeInputs, 'hedgeInputs');
   const { data: status, error: statusError, loading: statusLoading, refetch: refetchStatus } =
     useApiData(getHedgeStatus, 'hedgeStatus');
-  const { data: settings, refetch: refetchSettings } = useApiData(getHedgeSettings, 'hedgeSettings');
+  const { data: settings, loading: settingsLoading, refetch: refetchSettings } = useApiData(getHedgeSettings, 'hedgeSettings');
   const { data: settingsContext } = useApiData(getHedgeSettingsContext, 'hedgeSettingsContext');
 
   const [recalc, setRecalc] = useState(null);
@@ -59,6 +59,19 @@ export default function HedgeCard() {
       setRecalcLoading(false);
     }
   }
+
+  // Per docs/hedgenewupdates.md item #4: the full derivation chain (Sections
+  // A-D) should always be visible, not gated behind a manual click - so this
+  // fires once as soon as settings has finished loading (success or fail;
+  // handleRecalculate falls back to 'SPY' if settings never loaded). The
+  // "Recalculate" button still exists below for a manual refresh against
+  // live prices.
+  useEffect(() => {
+    if (!settingsLoading && !recalc && !recalcLoading) {
+      handleRecalculate();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settingsLoading]);
 
   async function handleOpenHedge(e) {
     e.preventDefault();
@@ -240,23 +253,67 @@ export default function HedgeCard() {
           {inputsError && !inputs && <ErrorView message={inputsError} onRetry={refetchInputs} />}
           {statusError && !status && <ErrorView message={statusError} onRetry={refetchStatus} />}
 
-          <div className={styles.metricsRow}>
-            <div className={styles.metric}>
-              <div className={styles.metricLabel}>Weighted Beta</div>
-              <div className={styles.metricValue}>{inputs?.weighted_beta ?? '—'}</div>
-            </div>
-            <div className={styles.metric}>
-              <div className={styles.metricLabel}>Weighted Avg Cushion</div>
-              <div className={styles.metricValue}>
-                {inputs?.weighted_avg_cushion_pct != null ? `${inputs.weighted_avg_cushion_pct.toFixed(1)}%` : '—'}
-              </div>
-            </div>
+          <div className={styles.chainSection}>
+            <h3 className={styles.sectionTitle}>A. Exposure, by Sleeve</h3>
+            {inputs?.exposure_breakdown ? (
+              <>
+                <div className={styles.sleeveGrid}>
+                  <div className={styles.sleeveCard}>
+                    <div className={styles.sleeveName}>CSP Sleeve</div>
+                    <div className={styles.sleeveRow}>
+                      Collateral Deployed{' '}
+                      <span className="num">{formatCurrency(inputs.exposure_breakdown.csp_sleeve.collateral_deployed)}</span>
+                    </div>
+                    <div className={styles.sleeveRow}>
+                      Avg Weighted Beta{' '}
+                      <span className="num">{inputs.exposure_breakdown.csp_sleeve.avg_weighted_beta ?? '—'}</span>
+                    </div>
+                    <div className={styles.sleeveResult}>
+                      → Beta-Weighted Exposure{' '}
+                      <span className="num">{formatCurrency(inputs.exposure_breakdown.csp_sleeve.beta_weighted_exposure)}</span>
+                    </div>
+                  </div>
+                  <div className={styles.sleeveCard}>
+                    <div className={styles.sleeveName}>SPX 0DTE/1DTE Sleeve</div>
+                    <div className={styles.sleeveRow}>
+                      Collateral Deployed{' '}
+                      <span className="num">{formatCurrency(inputs.exposure_breakdown.spx_sleeve.collateral_deployed)}</span>
+                    </div>
+                    <div className={styles.sleeveRow}>
+                      Beta <span className="num">1.00</span>{' '}
+                      <span className={styles.fixedNote}>(trades the index directly - fixed, not editable)</span>
+                    </div>
+                    <div className={styles.sleeveResult}>
+                      → Beta-Weighted Exposure{' '}
+                      <span className="num">{formatCurrency(inputs.exposure_breakdown.spx_sleeve.beta_weighted_exposure)}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className={styles.chainTotal}>
+                  <div>
+                    Total Collateral Deployed{' '}
+                    <span className="num">{formatCurrency(inputs.exposure_breakdown.total_collateral_deployed)}</span>
+                  </div>
+                  <div>
+                    Total SPY-Equivalent Exposure{' '}
+                    <span className="num">{formatCurrency(inputs.exposure_breakdown.total_spy_equivalent_exposure)}</span>
+                    {inputs.exposure_breakdown.implied_avg_beta_whole_book != null && (
+                      <span className={styles.note}>
+                        {' '}(equivalent to a weighted beta of {inputs.exposure_breakdown.implied_avg_beta_whole_book} on the whole book)
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <p className={styles.note}>No open positions yet.</p>
+            )}
+            {inputs?.missing_beta_tickers?.length > 0 && (
+              <p className={styles.note}>
+                No beta yet for: {inputs.missing_beta_tickers.join(', ')} - refreshes monthly, excluded from exposure until then.
+              </p>
+            )}
           </div>
-          {inputs?.missing_beta_tickers?.length > 0 && (
-            <p className={styles.note}>
-              No beta yet for: {inputs.missing_beta_tickers.join(', ')} - refreshes monthly, excluded from weighted beta until then.
-            </p>
-          )}
 
           <div className={styles.budgetSection}>
             <div className={styles.budgetLabel}>
@@ -338,24 +395,72 @@ export default function HedgeCard() {
             )}
           </div>
 
-          <div className={styles.recalcSection}>
+          <div className={styles.recalcHeader}>
             <button className={styles.recalcButton} onClick={handleRecalculate} disabled={recalcLoading}>
               {recalcLoading ? 'Recalculating…' : 'Recalculate Hedge'}
             </button>
-            {recalcError && <ErrorView message={recalcError} />}
+            {recalc?.pricing && (
+              <span className={styles.note}>
+                Spot <span className="num">${recalc.pricing.spot_price?.toFixed(2)}</span>, expiration{' '}
+                {recalc.pricing.expiration} ({recalc.pricing.dte} DTE)
+              </span>
+            )}
+          </div>
+          {recalcLoading && !recalc && <LoadingView label="Calculating hedge sizing" />}
+          {recalcError && !recalc && <ErrorView message={recalcError} onRetry={handleRecalculate} />}
 
-            {recalc && (
-              <div className={styles.recalcResult}>
-                <div className={styles.positionGrid}>
-                  <div>Spot <span className="num">${recalc.pricing.spot_price?.toFixed(2)}</span></div>
-                  <div>Expiration {recalc.pricing.expiration} ({recalc.pricing.dte} DTE)</div>
+          {recalc && (
+            <>
+              <div className={styles.chainSection}>
+                <h3 className={styles.sectionTitle}>B. Layer 1 — Spread Sizing (protects a routine -10% move)</h3>
+                <div className={styles.chainRows}>
+                  <div>Estimated loss at -10% <span className="num">{formatCurrency(recalc.sizing.estimated_loss_at_10pct)}</span></div>
                   <div>
-                    Spread{' '}
-                    <span className="num">${recalc.pricing.layer1_long?.strike}/{recalc.pricing.layer1_short?.strike}</span>
-                    {' '}x{recalc.sizing.spreads_needed_mid}
-                    {' '}(range {recalc.sizing.spreads_needed_low}-{recalc.sizing.spreads_needed_high})
+                    Target coverage (70-80% of that){' '}
+                    <span className="num">
+                      {formatCurrency(recalc.sizing.target_coverage_low)}–{formatCurrency(recalc.sizing.target_coverage_high)}
+                    </span>
                   </div>
-                  <div>Tail Put <span className="num">${recalc.pricing.layer2_tail?.strike}</span> x{recalc.sizing.tail_contracts_needed}</div>
+                  <div>
+                    Chosen strikes{' '}
+                    <span className="num">${recalc.pricing.layer1_long?.strike}/{recalc.pricing.layer1_short?.strike}</span>
+                    {' '}(width <span className="num">${recalc.sizing.spread_width}</span>, max value{' '}
+                    <span className="num">{formatCurrency(recalc.sizing.spread_max_value)}</span>/contract)
+                  </div>
+                  <div className={styles.chainResult}>
+                    → Spreads needed <strong className="num">{recalc.sizing.spreads_needed_mid}</strong>{' '}
+                    <span className={styles.note}>(range {recalc.sizing.spreads_needed_low}-{recalc.sizing.spreads_needed_high})</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.chainSection}>
+                <h3 className={styles.sectionTitle}>C. Layer 2 — Tail Put Sizing (protects a -25% crash, net of cushion)</h3>
+                <div className={styles.chainRows}>
+                  <div>
+                    Weighted Avg Cushion{' '}
+                    <span className="num">
+                      {inputs?.weighted_avg_cushion_pct != null ? `${inputs.weighted_avg_cushion_pct.toFixed(1)}%` : '—'}
+                    </span>
+                  </div>
+                  <div>
+                    Estimated loss at -25% (net of cushion){' '}
+                    <span className="num">{formatCurrency(recalc.sizing.estimated_loss_at_25pct)}</span>
+                  </div>
+                  <div>
+                    Chosen strike <span className="num">${recalc.pricing.layer2_tail?.strike}</span>
+                    {' '}(intrinsic at -25% <span className="num">{formatCurrency(recalc.sizing.tail_intrinsic_at_neg25pct)}</span>/contract)
+                  </div>
+                  <div className={styles.chainResult}>
+                    → Tail puts needed <strong className="num">{recalc.sizing.tail_contracts_needed}</strong>
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.chainSection}>
+                <h3 className={styles.sectionTitle}>D. Recommendation</h3>
+
+                <div className={styles.positionGrid}>
                   <div>Est. Total Debit <span className="num">{formatCurrency(recalc.sizing.estimated_total_debit)}</span></div>
                   {recalc.sizing.per_cycle_budget != null && (
                     <div>Budget Pace <span className="num">{formatCurrency(recalc.sizing.per_cycle_budget)}</span>/cycle</div>
@@ -401,8 +506,8 @@ export default function HedgeCard() {
                   </form>
                 )}
               </div>
-            )}
-          </div>
+            </>
+          )}
         </>
       )}
 
