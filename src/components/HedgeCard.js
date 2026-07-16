@@ -5,6 +5,7 @@ import {
 } from '../api/client';
 import { useApiData } from '../lib/useApiData';
 import { formatCurrency } from './SummaryBar';
+import { computeHedgeEntryDebit } from '../lib/hedgeMath';
 import MarkdownText from './MarkdownText';
 import { LoadingView, ErrorView } from './StateViews';
 import styles from './HedgeCard.module.css';
@@ -380,35 +381,41 @@ export default function HedgeCard() {
             <h3 className={styles.sectionTitle}>Current Hedge</h3>
             {openPosition ? (
               <>
-                <div className={styles.positionGrid}>
-                  {(openPosition.spread_legs || []).map((leg, i) => (
-                    <div key={leg.id}>
-                      Spread Leg {i + 1} <span className="num">${leg.long_strike}/{leg.short_strike}</span> x{leg.contracts}
-                    </div>
-                  ))}
-                  <div>
-                    Tail Put <span className="num">${openPosition.tail_put_strike}</span> x{openPosition.tail_put_contracts}
-                  </div>
-                  <div>
-                    Entry Debit{' '}
-                    <span className="num">
-                      {formatCurrency(
-                        (openPosition.spread_legs || []).reduce(
-                          (sum, leg) => sum + (leg.entry_debit || 0) * (leg.contracts || 0) * 100,
-                          0
-                        ) + (openPosition.tail_put_entry_debit || 0) * (openPosition.tail_put_contracts || 0) * 100
-                      )}
-                    </span>
-                  </div>
-                  <div>Days Held: {openPosition.days_held}</div>
+                <div className={styles.hedgeMeta}>
+                  Opened {new Date(openPosition.entry_date).toLocaleDateString()} - {openPosition.days_held} days held
                 </div>
 
-                {openPosition.roll_due ? (
+                <div className={styles.hedgeGroup}>
+                  <div className={styles.hedgeGroupLabel}>Spreads</div>
+                  {(openPosition.spread_legs || []).map((leg) => (
+                    <div key={leg.id} className={styles.hedgeGroupRow}>
+                      <span className="num">${leg.long_strike}/{leg.short_strike}</span> put spread{' '}
+                      <span className="num">x{leg.contracts}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className={styles.hedgeGroup}>
+                  <div className={styles.hedgeGroupLabel}>Tail Put</div>
+                  <div className={styles.hedgeGroupRow}>
+                    <span className="num">${openPosition.tail_put_strike}</span> put{' '}
+                    <span className="num">x{openPosition.tail_put_contracts}</span>
+                  </div>
+                </div>
+
+                <div className={styles.hedgeTotals}>
+                  <div>
+                    Total Entry Debit: <span className="num">{formatCurrency(computeHedgeEntryDebit(openPosition))}</span>
+                  </div>
+                  <div>
+                    {openPosition.roll_due ? 'Roll due now' : `Roll due in: ${openPosition.days_until_roll} days`}
+                  </div>
+                </div>
+
+                {openPosition.roll_due && (
                   <div className={styles.rollDueBanner}>
                     Hedge roll due - {openPosition.days_held} days held. Recalculate below, then close this cycle.
                   </div>
-                ) : (
-                  <div className={styles.daysUntilRoll}>{openPosition.days_until_roll} days until roll due</div>
                 )}
 
                 <button className={styles.actionButton} onClick={toggleCloseForm}>

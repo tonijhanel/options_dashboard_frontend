@@ -21,6 +21,7 @@ import { useNewsSentiment } from '../lib/useNewsSentiment';
 import SortableHeader from '../components/SortableHeader';
 import ColumnPicker, { useColumnVisibility } from '../components/ColumnPicker';
 import CalendarBadge from '../components/CalendarBadge';
+import { computeHedgeEntryDebit, formatHedgeLegsSummary } from '../lib/hedgeMath';
 import tableStyles from '../components/Table.module.css';
 import styles from './PositionsPage.module.css';
 
@@ -186,11 +187,21 @@ export default function PositionsPage() {
 
       {error && <ErrorView message={error} onRetry={refetch} />}
 
-      {hedgeStatus?.open_position?.roll_due && (
-        <div className={styles.hedgeRollBanner}>
-          Hedge roll due - {hedgeStatus.open_position.days_held} days held, recompute and re-enter on the Hedge page.
-        </div>
-      )}
+      {hedgeStatus?.open_position && (() => {
+        const openPosition = hedgeStatus.open_position;
+        const urgencyClass = openPosition.roll_due
+          ? styles.hedgeBannerUrgent
+          : openPosition.days_until_roll <= 14
+            ? styles.hedgeBannerWarning
+            : styles.hedgeBannerNeutral;
+        return (
+          <div className={`${styles.hedgeBanner} ${urgencyClass}`}>
+            Active Hedge: {openPosition.instrument} {formatHedgeLegsSummary(openPosition)}
+            {' - '}Entry Debit {formatCurrency(computeHedgeEntryDebit(openPosition))}
+            {' - '}{openPosition.roll_due ? 'roll due now' : `${openPosition.days_until_roll} days until roll`}
+          </div>
+        );
+      })()}
 
       <SummaryBar
         items={[
