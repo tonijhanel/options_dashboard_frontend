@@ -290,6 +290,47 @@
   color: var(--text-tertiary);
 }
 
+.legsWrap {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.legRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+  padding: var(--space-2);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.legRow label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+}
+
+.removeLegButton {
+  padding: var(--space-1) var(--space-2);
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  border-radius: var(--radius-sm);
+  color: var(--negative);
+  font-size: 12px;
+}
+
+.removeLegButton:hover {
+  background: rgba(220, 38, 38, 0.14);
+}
+
 .recalcHeader {
   display: flex;
   flex-wrap: wrap;

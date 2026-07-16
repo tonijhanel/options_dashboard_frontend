@@ -28,11 +28,17 @@ export default function HedgeCard() {
   const [recalcLoading, setRecalcLoading] = useState(false);
   const [recalcError, setRecalcError] = useState(null);
   const [openForm, setOpenForm] = useState(null);
+  // One row per spread leg (docs/hedgemulti.md item #5 - laddering multiple
+  // strike pairs within one cycle is a real strategy) - seeded with a single
+  // leg matching the sizing recommendation on recalculate, but the person can
+  // add/remove rows before actually opening the hedge.
+  const [spreadLegsForm, setSpreadLegsForm] = useState([]);
   const [opening, setOpening] = useState(false);
   const [openError, setOpenError] = useState(null);
 
   const [showCloseForm, setShowCloseForm] = useState(false);
-  const [closeForm, setCloseForm] = useState({ spread_close_credit: '', tail_put_close_credit: '' });
+  const [closeLegCredits, setCloseLegCredits] = useState({}); // { [legId]: '<credit input value>' }
+  const [closeForm, setCloseForm] = useState({ tail_put_close_credit: '' });
   const [closing, setClosing] = useState(false);
   const [closeError, setCloseError] = useState(null);
 
@@ -48,16 +54,37 @@ export default function HedgeCard() {
       const result = await getHedgeSizing(settings?.preferred_instrument || 'SPY');
       setRecalc(result);
       setOpenForm({
-        spread_entry_debit: (
-          (result.pricing.layer1_long?.mid || 0) - (result.pricing.layer1_short?.mid || 0)
-        ).toFixed(2),
         tail_put_entry_debit: (result.pricing.layer2_tail?.mid || 0).toFixed(2),
       });
+      // Seed a single leg matching the sizing recommendation - the sizing
+      // engine only ever recommends ONE strike pair; laddering additional
+      // legs is a deliberate manual choice made here, not something it
+      // recommends automatically.
+      setSpreadLegsForm([{
+        long_strike: result.pricing.layer1_long?.strike ?? '',
+        short_strike: result.pricing.layer1_short?.strike ?? '',
+        contracts: result.sizing.spreads_needed_mid ?? '',
+        entry_debit: (
+          (result.pricing.layer1_long?.mid || 0) - (result.pricing.layer1_short?.mid || 0)
+        ).toFixed(2),
+      }]);
     } catch (err) {
       setRecalcError(err.message);
     } finally {
       setRecalcLoading(false);
     }
+  }
+
+  function addSpreadLeg() {
+    setSpreadLegsForm((legs) => [...legs, { long_strike: '', short_strike: '', contracts: '', entry_debit: '' }]);
+  }
+
+  function removeSpreadLeg(index) {
+    setSpreadLegsForm((legs) => legs.filter((_, i) => i !== index));
+  }
+
+  function updateSpreadLeg(index, field, value) {
+    setSpreadLegsForm((legs) => legs.map((leg, i) => (i === index ? { ...leg, [field]: value } : leg)));
   }
 
   // Per docs/hedgenewupdates.md item #4: the full derivation chain (Sections
@@ -75,16 +102,18 @@ export default function HedgeCard() {
 
   async function handleOpenHedge(e) {
     e.preventDefault();
-    if (!recalc) return;
+    if (!recalc || spreadLegsForm.length === 0) return;
     setOpening(true);
     setOpenError(null);
     try {
       await createHedgePosition({
         instrument: recalc.pricing.instrument,
-        spread_long_strike: recalc.pricing.layer1_long.strike,
-        spread_short_strike: recalc.pricing.layer1_short.strike,
-        spread_contracts: recalc.sizing.spreads_needed_mid,
-        spread_entry_debit: Number(openForm.spread_entry_debit),
+        spread_legs: spreadLegsForm.map((leg) => ({
+          long_strike: Number(leg.long_strike),
+          short_strike: Number(leg.short_strike),
+          contracts: Number(leg.contracts),
+          entry_debit: Number(leg.entry_debit),
+        })),
         tail_put_strike: recalc.pricing.layer2_tail.strike,
         tail_put_contracts: recalc.sizing.tail_contracts_needed,
         tail_put_entry_debit: Number(openForm.tail_put_entry_debit),
@@ -92,6 +121,7 @@ export default function HedgeCard() {
       });
       setRecalc(null);
       setOpenForm(null);
+      setSpreadLegsForm([]);
       await refetchStatus();
     } catch (err) {
       setOpenError(err.message);
@@ -100,18 +130,34 @@ export default function HedgeCard() {
     }
   }
 
+  function toggleCloseForm() {
+    if (!showCloseForm && status?.open_position?.spread_legs) {
+      const initial = {};
+      status.open_position.spread_legs.forEach((leg) => {
+        initial[leg.id] = '';
+      });
+      setCloseLegCredits(initial);
+    }
+    setShowCloseForm((v) => !v);
+  }
+
   async function handleCloseHedge(e) {
     e.preventDefault();
     if (!status?.open_position) return;
     setClosing(true);
     setCloseError(null);
     try {
+      const spread_legs = Object.entries(closeLegCredits).map(([id, credit]) => ({
+        id: Number(id),
+        close_credit: credit === '' ? null : Number(credit),
+      }));
       await closeHedgePosition(status.open_position.id, {
-        spread_close_credit: closeForm.spread_close_credit === '' ? null : Number(closeForm.spread_close_credit),
+        spread_legs,
         tail_put_close_credit: closeForm.tail_put_close_credit === '' ? null : Number(closeForm.tail_put_close_credit),
       });
       setShowCloseForm(false);
-      setCloseForm({ spread_close_credit: '', tail_put_close_credit: '' });
+      setCloseLegCredits({});
+      setCloseForm({ tail_put_close_credit: '' });
       await refetchStatus();
     } catch (err) {
       setCloseError(err.message);
@@ -335,17 +381,23 @@ export default function HedgeCard() {
             {openPosition ? (
               <>
                 <div className={styles.positionGrid}>
-                  <div>
-                    Spread <span className="num">${openPosition.spread_long_strike}/{openPosition.spread_short_strike}</span>
-                    {' '}x{openPosition.spread_contracts}
-                  </div>
+                  {(openPosition.spread_legs || []).map((leg, i) => (
+                    <div key={leg.id}>
+                      Spread Leg {i + 1} <span className="num">${leg.long_strike}/{leg.short_strike}</span> x{leg.contracts}
+                    </div>
+                  ))}
                   <div>
                     Tail Put <span className="num">${openPosition.tail_put_strike}</span> x{openPosition.tail_put_contracts}
                   </div>
                   <div>
                     Entry Debit{' '}
                     <span className="num">
-                      {formatCurrency((openPosition.spread_entry_debit || 0) + (openPosition.tail_put_entry_debit || 0))}
+                      {formatCurrency(
+                        (openPosition.spread_legs || []).reduce(
+                          (sum, leg) => sum + (leg.entry_debit || 0) * (leg.contracts || 0) * 100,
+                          0
+                        ) + (openPosition.tail_put_entry_debit || 0) * (openPosition.tail_put_contracts || 0) * 100
+                      )}
                     </span>
                   </div>
                   <div>Days Held: {openPosition.days_held}</div>
@@ -359,21 +411,23 @@ export default function HedgeCard() {
                   <div className={styles.daysUntilRoll}>{openPosition.days_until_roll} days until roll due</div>
                 )}
 
-                <button className={styles.actionButton} onClick={() => setShowCloseForm((v) => !v)}>
+                <button className={styles.actionButton} onClick={toggleCloseForm}>
                   {showCloseForm ? 'Cancel' : 'Close / Roll This Hedge'}
                 </button>
 
                 {showCloseForm && (
                   <form onSubmit={handleCloseHedge} className={styles.closeForm}>
-                    <label>
-                      Spread Close Credit
-                      <input
-                        type="number" step="0.01"
-                        value={closeForm.spread_close_credit}
-                        onChange={(e) => setCloseForm((f) => ({ ...f, spread_close_credit: e.target.value }))}
-                        className={styles.settingsInput}
-                      />
-                    </label>
+                    {(openPosition.spread_legs || []).map((leg, i) => (
+                      <label key={leg.id}>
+                        Close Credit: Leg {i + 1} (${leg.long_strike}/{leg.short_strike} x{leg.contracts})
+                        <input
+                          type="number" step="0.01"
+                          value={closeLegCredits[leg.id] ?? ''}
+                          onChange={(e) => setCloseLegCredits((c) => ({ ...c, [leg.id]: e.target.value }))}
+                          className={styles.settingsInput}
+                        />
+                      </label>
+                    ))}
                     <label>
                       Tail Put Close Credit
                       <input
@@ -481,15 +535,56 @@ export default function HedgeCard() {
                   <p className={styles.note}>Close the current hedge above before opening a new one.</p>
                 ) : (
                   <form onSubmit={handleOpenHedge} className={styles.closeForm}>
-                    <label>
-                      Actual Spread Debit
-                      <input
-                        type="number" step="0.01"
-                        value={openForm?.spread_entry_debit || ''}
-                        onChange={(e) => setOpenForm((f) => ({ ...f, spread_entry_debit: e.target.value }))}
-                        className={styles.settingsInput}
-                      />
-                    </label>
+                    <div className={styles.legsWrap}>
+                      {spreadLegsForm.map((leg, i) => (
+                        <div key={i} className={styles.legRow}>
+                          <label>
+                            Long Strike
+                            <input
+                              type="number" step="0.5"
+                              value={leg.long_strike}
+                              onChange={(e) => updateSpreadLeg(i, 'long_strike', e.target.value)}
+                              className={styles.settingsInput}
+                            />
+                          </label>
+                          <label>
+                            Short Strike
+                            <input
+                              type="number" step="0.5"
+                              value={leg.short_strike}
+                              onChange={(e) => updateSpreadLeg(i, 'short_strike', e.target.value)}
+                              className={styles.settingsInput}
+                            />
+                          </label>
+                          <label>
+                            Contracts
+                            <input
+                              type="number" step="1"
+                              value={leg.contracts}
+                              onChange={(e) => updateSpreadLeg(i, 'contracts', e.target.value)}
+                              className={styles.settingsInput}
+                            />
+                          </label>
+                          <label>
+                            Actual Entry Debit
+                            <input
+                              type="number" step="0.01"
+                              value={leg.entry_debit}
+                              onChange={(e) => updateSpreadLeg(i, 'entry_debit', e.target.value)}
+                              className={styles.settingsInput}
+                            />
+                          </label>
+                          {spreadLegsForm.length > 1 && (
+                            <button type="button" className={styles.removeLegButton} onClick={() => removeSpreadLeg(i)}>
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      <button type="button" className={styles.actionButton} onClick={addSpreadLeg}>
+                        + Add Spread Leg
+                      </button>
+                    </div>
                     <label>
                       Actual Tail Put Debit
                       <input
