@@ -1,4 +1,5 @@
-import { getActiveSpreads } from '../api/client';
+import { useState } from 'react';
+import { getActiveSpreads, updatePositionLogEntry } from '../api/client';
 import { useApiData } from '../lib/useApiData';
 import { useSortableData } from '../lib/useSortableData';
 import { LoadingView, ErrorView, EmptyView } from '../components/StateViews';
@@ -8,6 +9,73 @@ import SortableHeader from '../components/SortableHeader';
 import ColumnPicker, { useColumnVisibility } from '../components/ColumnPicker';
 import tableStyles from '../components/Table.module.css';
 import styles from './ActiveSpreadsPage.module.css';
+
+// Same visual/interaction pattern as Position Log's own Close action
+// (docs/spreadclose.md - reuses the existing PATCH /position-log/<id>
+// route and close_position_log logic exactly as-is, no new backend
+// route). Pre-fills both price fields from this row's own live
+// short_mid/long_mid (already fetched for the Current Net Value column) -
+// a reasonable starting point, overwritable with the real fill price.
+function SpreadRowActions({ row, onClosed }) {
+  const [closing, setClosing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [shortClosePrice, setShortClosePrice] = useState(row.short_mid != null ? row.short_mid.toFixed(2) : '');
+  const [longClosePrice, setLongClosePrice] = useState(row.long_mid != null ? row.long_mid.toFixed(2) : '');
+  const [error, setError] = useState(null);
+
+  async function handleClose() {
+    setSaving(true);
+    setError(null);
+    try {
+      const spreadNetClose = shortClosePrice !== '' && longClosePrice !== ''
+        ? Number(shortClosePrice) - Number(longClosePrice)
+        : undefined;
+      await updatePositionLogEntry(row.id, {
+        status: 'closed',
+        closed_price: spreadNetClose,
+        short_close_price: shortClosePrice !== '' ? Number(shortClosePrice) : undefined,
+        long_close_price: longClosePrice !== '' ? Number(longClosePrice) : undefined,
+      });
+      onClosed();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!closing) {
+    return <button className={styles.actionButtonClose} onClick={() => setClosing(true)}>Close</button>;
+  }
+
+  return (
+    <div className={styles.inlinePanel}>
+      <label>
+        Short Close Price
+        <input
+          type="number" step="0.01"
+          value={shortClosePrice}
+          onChange={(e) => setShortClosePrice(e.target.value)}
+          className={styles.formInputSmall}
+        />
+      </label>
+      <label>
+        Long Close Price
+        <input
+          type="number" step="0.01"
+          value={longClosePrice}
+          onChange={(e) => setLongClosePrice(e.target.value)}
+          className={styles.formInputSmall}
+        />
+      </label>
+      <button className={styles.actionButtonClose} onClick={handleClose} disabled={saving}>
+        {saving ? 'Closing…' : 'Confirm Close'}
+      </button>
+      <button className={styles.cancelButton} onClick={() => setClosing(false)}>Cancel</button>
+      {error && <div className={styles.formError}>{error}</div>}
+    </div>
+  );
+}
 
 // Same column-definition pattern as PositionsPage/TspScanPage - one source
 // of truth driving both the column picker and the sort logic.
@@ -90,6 +158,7 @@ export default function ActiveSpreadsPage() {
                       onSort={requestSort}
                     />
                   ))}
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -100,6 +169,9 @@ export default function ActiveSpreadsPage() {
                         {col.render(r)}
                       </td>
                     ))}
+                    <td className={styles.actionsCell}>
+                      <SpreadRowActions row={r} onClosed={refetch} />
+                    </td>
                   </tr>
                 ))}
               </tbody>

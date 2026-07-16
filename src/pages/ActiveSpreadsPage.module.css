@@ -29,3 +29,58 @@
 .errorsNote p {
   margin: var(--space-2) 0 0;
 }
+
+.actionsCell {
+  white-space: nowrap;
+}
+
+.actionButtonClose {
+  padding: var(--space-1) var(--space-3);
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  border-radius: var(--radius-sm);
+  color: var(--negative);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.actionButtonClose:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.14);
+}
+
+.cancelButton {
+  padding: var(--space-1) var(--space-3);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.inlinePanel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+  white-space: nowrap;
+}
+
+.inlinePanel label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.formInputSmall {
+  padding: var(--space-2) var(--space-3);
+  font-size: 13px;
+  width: 90px;
+}
+
+.formError {
+  width: 100%;
+  color: var(--negative);
+  font-size: 12px;
+}
