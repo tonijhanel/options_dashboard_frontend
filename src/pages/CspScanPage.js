@@ -164,6 +164,23 @@ export default function CspScanPage() {
         <button type="submit" className={styles.scanButton} disabled={!form.ticker.trim()}>
           Scan
         </button>
+
+        {data && (data.sector || data.rationale) && (
+          <div className={styles.tickerInfoRow}>
+            {data.sector && (
+              <span>
+                <span className={styles.tickerInfoLabel}>Sector</span>
+                {data.sector}
+              </span>
+            )}
+            {data.rationale && (
+              <span>
+                <span className={styles.tickerInfoLabel}>Rationale</span>
+                {data.rationale}
+              </span>
+            )}
+          </div>
+        )}
       </form>
 
       {loading && <LoadingView label={`Scanning ${form.ticker.toUpperCase()}`} />}
