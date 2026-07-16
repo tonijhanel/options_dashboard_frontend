@@ -16,6 +16,7 @@ import RollRecommendationPanel from '../components/RollRecommendationPanel';
 import RiskCurveChart from '../components/RiskCurveChart';
 import PageHeader from '../components/PageHeader';
 import NewsPreview from '../components/NewsPreview';
+import PositionReviewHover from '../components/PositionReviewHover';
 import { useNewsSentiment } from '../lib/useNewsSentiment';
 import SortableHeader from '../components/SortableHeader';
 import ColumnPicker, { useColumnVisibility } from '../components/ColumnPicker';
@@ -92,7 +93,11 @@ const COLUMNS = [
       return <ROCTierBadge tier={tier} />;
     } },
   { key: 'status', label: 'Status', sortable: true, getSortValue: (p) => p.status.label,
-    render: (p) => <StatusBadge status={p.status} /> },
+    render: (p) => (
+      <PositionReviewHover ticker={p.ticker} strike={p.strike} spot={p.spot} recommendation={p.recommendation}>
+        <StatusBadge status={p.status} />
+      </PositionReviewHover>
+    ) },
   { key: 'recommendation', label: 'Recommendation', sortable: true,
     getSortValue: (p) => TIER_RANK[p.recommendation.tier],
     render: (p) => <RecommendationBadge tier={p.recommendation.tier} /> },
