@@ -142,3 +142,40 @@ export function updatePositionLogEntry(id, payload) {
     body: JSON.stringify(payload),
   });
 }
+
+export function getHedgeInputs() {
+  return request('/hedge-inputs');
+}
+
+export function getHedgeSizing(instrument = 'SPY') {
+  return request(`/hedge-sizing?instrument=${instrument}`);
+}
+
+export function getHedgeStatus() {
+  return request('/hedge-status');
+}
+
+export function getHedgeSettings() {
+  return request('/hedge-settings');
+}
+
+export function updateHedgeSettings(payload) {
+  return request('/hedge-settings', {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function createHedgePosition(payload) {
+  return request('/hedge-positions', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function closeHedgePosition(id, payload) {
+  return request(`/hedge-positions/${id}/close`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}

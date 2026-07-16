@@ -1,0 +1,277 @@
+.card {
+  padding: var(--space-4);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: var(--space-4);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+
+.title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.sectionTitle {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 var(--space-2);
+  color: var(--text-primary);
+}
+
+.settingsButton {
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.settingsButton:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.settingsForm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: var(--space-3);
+}
+
+.settingsForm label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+}
+
+.settingsInput {
+  padding: var(--space-2) var(--space-3);
+  font-size: 13px;
+  width: 140px;
+}
+
+.formActions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.saveButton {
+  padding: var(--space-2) var(--space-4);
+  background: var(--accent);
+  color: var(--bg);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.saveButton:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.saveButton:disabled {
+  opacity: 0.6;
+}
+
+.cancelButton {
+  padding: var(--space-2) var(--space-4);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.metricsRow {
+  display: flex;
+  gap: var(--space-5);
+  margin-bottom: var(--space-3);
+}
+
+.metric {
+  min-width: 140px;
+}
+
+.metricLabel {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+  font-weight: 600;
+  margin-bottom: var(--space-1);
+}
+
+.metricValue {
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+.note {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin: 0 0 var(--space-3);
+}
+
+.budgetSection {
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.budgetLabel {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.barTrack {
+  height: 8px;
+  background: var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+}
+
+.barFill.over {
+  background: var(--negative);
+}
+
+.positionSection {
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.positionGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-3);
+}
+
+.rollDueBanner {
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-3);
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  border-radius: var(--radius-sm);
+  color: var(--negative);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.daysUntilRoll {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-bottom: var(--space-3);
+}
+
+.actionButton {
+  padding: var(--space-2) var(--space-4);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.actionButton:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.closeForm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.closeForm label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+}
+
+.recalcSection {
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.recalcButton {
+  padding: var(--space-2) var(--space-5);
+  background: var(--accent);
+  color: var(--bg);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.recalcButton:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.recalcButton:disabled {
+  opacity: 0.6;
+}
+
+.recalcResult {
+  margin-top: var(--space-3);
+}
+
+.orderText {
+  margin: 0 0 var(--space-3);
+  padding-left: var(--space-5);
+  font-size: 13px;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
+.error {
+  width: 100%;
+  color: var(--negative);
+  font-size: 12px;
+  margin-top: var(--space-2);
+}
+

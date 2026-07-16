@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { getPositions, getRealizedPnl } from '../api/client';
+import { getPositions, getRealizedPnl, getHedgeStatus } from '../api/client';
 import { useApiData } from '../lib/useApiData';
 import { useSortableData } from '../lib/useSortableData';
 import { computeStatus } from '../lib/positionSignal';
@@ -108,6 +108,7 @@ export default function PositionsPage() {
   const [selectedKey, setSelectedKey] = useState(null);
   const { data, error, loading, refetch } = useApiData(getPositions, 'positions');
   const { data: realizedPnl, refetch: refetchRealizedPnl } = useApiData(getRealizedPnl, 'realized-pnl');
+  const { data: hedgeStatus } = useApiData(getHedgeStatus, 'hedgeStatus');
   const { getEntry: getNewsEntry } = useNewsSentiment();
 
   const positionsWithStatus = useMemo(() => {
@@ -184,6 +185,12 @@ export default function PositionsPage() {
       />
 
       {error && <ErrorView message={error} onRetry={refetch} />}
+
+      {hedgeStatus?.open_position?.roll_due && (
+        <div className={styles.hedgeRollBanner}>
+          Hedge roll due - {hedgeStatus.open_position.days_held} days held, recompute and re-enter on Portfolio Overview.
+        </div>
+      )}
 
       <SummaryBar
         items={[

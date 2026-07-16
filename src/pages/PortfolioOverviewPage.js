@@ -10,6 +10,7 @@ import SectorDonut from '../components/SectorDonut';
 import CushionBar from '../components/CushionBar';
 import InsightsList from '../components/InsightsList';
 import MarketCalendarWidget from '../components/MarketCalendarWidget';
+import HedgeCard from '../components/HedgeCard';
 import styles from './PortfolioOverviewPage.module.css';
 
 const SECTOR_METRICS = {
@@ -70,6 +71,8 @@ export default function PortfolioOverviewPage() {
       <PageHeader title="Portfolio Overview" onRefresh={refetch} refreshing={loading} />
 
       {!showCalendarInRow && <section className={styles.section}>{calendarSection}</section>}
+
+      <HedgeCard />
 
       {loading && !data && <LoadingView label="Loading portfolio overview" />}
       {error && !data && <ErrorView message={error} onRetry={refetch} />}

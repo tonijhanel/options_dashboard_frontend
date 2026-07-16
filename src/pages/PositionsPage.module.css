@@ -3,6 +3,17 @@
   color: var(--accent);
 }
 
+.hedgeRollBanner {
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-3);
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  border-radius: var(--radius);
+  color: var(--negative);
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .tableToolbar {
   display: flex;
   justify-content: flex-end;
