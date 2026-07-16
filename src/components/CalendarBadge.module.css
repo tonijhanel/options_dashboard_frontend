@@ -1,0 +1,28 @@
+.wrap {
+  display: inline-flex;
+  gap: 3px;
+  margin-left: var(--space-2);
+  vertical-align: middle;
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: default;
+}
+
+.earnings {
+  color: #b45309;
+  background: rgba(180, 83, 9, 0.15);
+}
+
+.dividend {
+  color: var(--status-roll-hold);
+  background: var(--status-roll-hold-bg);
+}

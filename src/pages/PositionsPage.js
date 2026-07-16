@@ -19,6 +19,7 @@ import NewsPreview from '../components/NewsPreview';
 import { useNewsSentiment } from '../lib/useNewsSentiment';
 import SortableHeader from '../components/SortableHeader';
 import ColumnPicker, { useColumnVisibility } from '../components/ColumnPicker';
+import CalendarBadge from '../components/CalendarBadge';
 import tableStyles from '../components/Table.module.css';
 import styles from './PositionsPage.module.css';
 
@@ -33,7 +34,12 @@ const TIER_RANK = { action: 0, caution: 1, safe: 2 };
 // so there's no way for them to drift out of sync with each other.
 const COLUMNS = [
   { key: 'ticker', label: 'Ticker', alwaysVisible: true, sortable: true, getSortValue: (p) => p.ticker,
-    render: (p) => <span className={styles.ticker}>{p.ticker}</span> },
+    render: (p) => (
+      <>
+        <span className={styles.ticker}>{p.ticker}</span>
+        <CalendarBadge nextEarningsDate={p.next_earnings_date} nextExDividendDate={p.next_ex_dividend_date} />
+      </>
+    ) },
   { key: 'sector', label: 'Sector', sortable: true, getSortValue: (p) => p.sector || 'Untracked',
     render: (p) => <span className={p.sector ? '' : tableStyles.muted}>{p.sector || 'Untracked'}</span> },
   { key: 'spot', label: 'Spot', sortable: true, getSortValue: (p) => p.spot,

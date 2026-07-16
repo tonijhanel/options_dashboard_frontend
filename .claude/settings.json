@@ -1,5 +1,10 @@
 {
   "permissions": {
-    "additionalDirectories": ["C:\\options_dashboard\\backend"]
+    "additionalDirectories": [
+      "C:\\options_dashboard\\backend"
+    ],
+    "allow": [
+      "Read(//c/options_dashboard/backend/clients/**)"
+    ]
   }
 }

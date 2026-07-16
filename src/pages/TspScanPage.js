@@ -10,6 +10,7 @@ import ROCTierBadge from '../components/ROCTierBadge';
 import PageHeader from '../components/PageHeader';
 import SortableHeader from '../components/SortableHeader';
 import ColumnPicker, { useColumnVisibility } from '../components/ColumnPicker';
+import CalendarBadge from '../components/CalendarBadge';
 import tableStyles from '../components/Table.module.css';
 import styles from './TspScanPage.module.css';
 
@@ -19,7 +20,12 @@ const TIER_RANK = { skip: 0, sweet_spot: 1, alpha: 2 };
 // driving both the column picker and the sort logic.
 const COLUMNS = [
   { key: 'ticker', label: 'Ticker', alwaysVisible: true, sortable: true, getSortValue: (p) => p.ticker,
-    render: (p) => <span className={styles.ticker}>{p.ticker}</span> },
+    render: (p) => (
+      <>
+        <span className={styles.ticker}>{p.ticker}</span>
+        <CalendarBadge nextEarningsDate={p.next_earnings_date} nextExDividendDate={p.next_ex_dividend_date} />
+      </>
+    ) },
   { key: 'group', label: 'Group', sortable: true, getSortValue: (p) => p.group,
     render: (p) => p.group },
   { key: 'sector', label: 'Sector', sortable: true, getSortValue: (p) => p.sector || 'Untracked',

@@ -5,6 +5,7 @@ import { LoadingView, ErrorView, EmptyView } from '../components/StateViews';
 import TradeSignalBadge from '../components/TradeSignalBadge';
 import SortableHeader from '../components/SortableHeader';
 import ColumnPicker, { useColumnVisibility } from '../components/ColumnPicker';
+import CalendarBadge from '../components/CalendarBadge';
 import tableStyles from '../components/Table.module.css';
 import styles from './CspScanPage.module.css';
 
@@ -171,6 +172,10 @@ export default function CspScanPage() {
       {!loading && !error && hasSearched && data && (
         <>
           <div className={styles.contextRow}>
+            <span>
+              {form.ticker.toUpperCase()}
+              <CalendarBadge nextEarningsDate={data.next_earnings_date} nextExDividendDate={data.next_ex_dividend_date} />
+            </span>
             <span>
               Spot: <span className="num">{data.spot_price?.toFixed(2)}</span>
             </span>

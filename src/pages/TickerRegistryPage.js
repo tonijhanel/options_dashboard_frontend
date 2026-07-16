@@ -4,6 +4,7 @@ import { LoadingView, ErrorView, EmptyView } from '../components/StateViews';
 import PageHeader from '../components/PageHeader';
 import SortableHeader from '../components/SortableHeader';
 import ColumnPicker, { useColumnVisibility } from '../components/ColumnPicker';
+import CalendarBadge from '../components/CalendarBadge';
 import { useSortableData } from '../lib/useSortableData';
 import tableStyles from '../components/Table.module.css';
 import styles from './TickerRegistryPage.module.css';
@@ -272,7 +273,15 @@ export default function TickerRegistryPage() {
                           }
                         >
                           {col.key === 'ticker'
-                            ? <span className={styles.ticker}>{row.ticker}</span>
+                            ? (
+                              <>
+                                <span className={styles.ticker}>{row.ticker}</span>
+                                <CalendarBadge
+                                  nextEarningsDate={row.next_earnings_date}
+                                  nextExDividendDate={row.next_ex_dividend_date}
+                                />
+                              </>
+                            )
                             : row[col.key] ?? '—'}
                         </td>
                       ))}
