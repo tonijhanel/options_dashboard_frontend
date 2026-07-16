@@ -130,7 +130,12 @@ export default function HedgeCard() {
         preferred_instrument: settingsForm.preferred_instrument,
       });
       setShowSettings(false);
-      await refetchSettings();
+      // hedgeStatus carries its own copy of annual_hedge_budget (computed
+      // server-side from hedge_settings on every call) - refetch it too,
+      // not just hedgeSettings, or the budget line below keeps showing
+      // the stale pre-save value until an unrelated refresh happens to
+      // touch it.
+      await Promise.all([refetchSettings(), refetchStatus()]);
     } catch (err) {
       setSettingsError(err.message);
     } finally {
