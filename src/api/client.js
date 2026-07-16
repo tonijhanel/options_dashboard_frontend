@@ -159,6 +159,10 @@ export function getHedgeSettings() {
   return request('/hedge-settings');
 }
 
+export function getHedgeSettingsContext() {
+  return request('/hedge-settings-context');
+}
+
 export function updateHedgeSettings(payload) {
   return request('/hedge-settings', {
     method: 'PATCH',

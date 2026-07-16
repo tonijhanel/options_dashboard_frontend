@@ -70,6 +70,13 @@
   width: 140px;
 }
 
+.contextHint {
+  flex-basis: 100%;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  line-height: 1.5;
+}
+
 .formActions {
   display: flex;
   gap: var(--space-2);

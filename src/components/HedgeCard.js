@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  getHedgeInputs, getHedgeSizing, getHedgeStatus, getHedgeSettings,
+  getHedgeInputs, getHedgeSizing, getHedgeStatus, getHedgeSettings, getHedgeSettingsContext,
   updateHedgeSettings, createHedgePosition, closeHedgePosition,
 } from '../api/client';
 import { useApiData } from '../lib/useApiData';
@@ -22,6 +22,7 @@ export default function HedgeCard() {
   const { data: status, error: statusError, loading: statusLoading, refetch: refetchStatus } =
     useApiData(getHedgeStatus, 'hedgeStatus');
   const { data: settings, refetch: refetchSettings } = useApiData(getHedgeSettings, 'hedgeSettings');
+  const { data: settingsContext } = useApiData(getHedgeSettingsContext, 'hedgeSettingsContext');
 
   const [recalc, setRecalc] = useState(null);
   const [recalcLoading, setRecalcLoading] = useState(false);
@@ -159,6 +160,21 @@ export default function HedgeCard() {
               className={styles.settingsInput}
             />
           </label>
+          {settingsContext?.total_collateral_deployed != null && (
+            <div className={styles.contextHint}>
+              Total collateral currently deployed: <span className="num">{formatCurrency(settingsContext.total_collateral_deployed)}</span>.
+              {settingsForm.max_acceptable_loss && Number(settingsForm.max_acceptable_loss) > 0 && (
+                <>
+                  {' '}For context, <span className="num">{formatCurrency(Number(settingsForm.max_acceptable_loss))}</span> represents{' '}
+                  <span className="num">
+                    {((Number(settingsForm.max_acceptable_loss) / settingsContext.total_collateral_deployed) * 100).toFixed(1)}%
+                  </span>{' '}of that.
+                </>
+              )}
+              {' '}This is a decision, not a formula - no suggested value.
+            </div>
+          )}
+
           <label>
             Annual Hedge Budget
             <input
@@ -168,6 +184,18 @@ export default function HedgeCard() {
               className={styles.settingsInput}
             />
           </label>
+          {settingsContext?.suggested_budget_low != null && (
+            <div className={styles.contextHint}>
+              Based on <span className="num">{formatCurrency(settingsContext.trailing_annual_premium)}</span> in premium collected
+              {settingsContext.annualized
+                ? ` (annualized from ${settingsContext.trailing_window_days} days of history)`
+                : ' over the past 12 months'}
+              , a typical hedge budget would be{' '}
+              <span className="num">{formatCurrency(settingsContext.suggested_budget_low)}</span>
+              {'-'}
+              <span className="num">{formatCurrency(settingsContext.suggested_budget_high)}</span>.
+            </div>
+          )}
           <label>
             Budget Scope
             <select
@@ -324,7 +352,14 @@ export default function HedgeCard() {
                   </div>
                   <div>Tail Put <span className="num">${recalc.pricing.layer2_tail?.strike}</span> x{recalc.sizing.tail_contracts_needed}</div>
                   <div>Est. Total Debit <span className="num">{formatCurrency(recalc.sizing.estimated_total_debit)}</span></div>
+                  {recalc.sizing.per_cycle_budget != null && (
+                    <div>Budget Pace <span className="num">{formatCurrency(recalc.sizing.per_cycle_budget)}</span>/cycle</div>
+                  )}
                 </div>
+
+                {recalc.sizing.over_budget && (
+                  <div className={styles.rollDueBanner}>{recalc.sizing.budget_warning}</div>
+                )}
 
                 {recalc.order_text?.length > 0 && (
                   <ul className={styles.orderText}>
