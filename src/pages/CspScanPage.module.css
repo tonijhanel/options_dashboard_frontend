@@ -36,6 +36,12 @@
   font-family: var(--font-mono);
 }
 
+.deltaInput {
+  width: 90px;
+  padding: var(--space-2) var(--space-3);
+  font-family: var(--font-mono);
+}
+
 .checkboxField {
   display: flex;
   align-items: center;

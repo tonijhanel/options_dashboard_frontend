@@ -115,7 +115,7 @@ export default function CspScanPage() {
             max="1"
             value={form.minDelta}
             onChange={(e) => updateField('minDelta', Number(e.target.value))}
-            className={styles.numberInput}
+            className={styles.deltaInput}
           />
         </div>
         <div className={styles.field}>
@@ -128,7 +128,7 @@ export default function CspScanPage() {
             max="1"
             value={form.maxDelta}
             onChange={(e) => updateField('maxDelta', Number(e.target.value))}
-            className={styles.numberInput}
+            className={styles.deltaInput}
           />
         </div>
         <div className={styles.field}>
