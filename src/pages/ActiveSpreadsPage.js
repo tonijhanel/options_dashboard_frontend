@@ -82,6 +82,8 @@ function SpreadRowActions({ row, onClosed }) {
 const COLUMNS = [
   { key: 'ticker', label: 'Ticker', alwaysVisible: true, sortable: true, getSortValue: (r) => r.ticker,
     render: (r) => <span className={styles.ticker}>{r.ticker}</span> },
+  { key: 'spot_price', label: 'Spot', sortable: true, getSortValue: (r) => r.spot_price,
+    render: (r) => (r.spot_price != null ? r.spot_price.toFixed(2) : '—') },
   { key: 'short_strike', label: 'Short Strike', sortable: true, getSortValue: (r) => r.short_strike,
     render: (r) => r.short_strike?.toFixed(2) },
   { key: 'long_strike', label: 'Long Strike', sortable: true, getSortValue: (r) => r.long_strike,
