@@ -88,6 +88,8 @@ const COLUMNS = [
     render: (r) => r.short_strike?.toFixed(2) },
   { key: 'long_strike', label: 'Long Strike', sortable: true, getSortValue: (r) => r.long_strike,
     render: (r) => r.long_strike?.toFixed(2) },
+  { key: 'break_even', label: 'Break Even', sortable: true, getSortValue: (r) => r.break_even,
+    render: (r) => (r.break_even != null ? r.break_even.toFixed(2) : '—') },
   { key: 'expiration', label: 'Expiration', sortable: true, getSortValue: (r) => r.expiration,
     render: (r) => r.expiration },
   { key: 'contracts', label: 'Contracts', sortable: true, getSortValue: (r) => r.contracts,
