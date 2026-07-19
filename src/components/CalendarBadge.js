@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { formatDate } from '../lib/formatDate';
 import styles from './CalendarBadge.module.css';
 
@@ -15,6 +16,27 @@ function isWithinWarningWindow(dateString) {
   return diffDays >= 0 && diffDays <= WARNING_WINDOW_DAYS;
 }
 
+// Styled hover popup (same pattern as NewsPreview's tooltip) - replaces a
+// plain native `title` attribute, which is easy to miss and can't be styled.
+function BadgeIcon({ tone, letter, label, date }) {
+  const [hovering, setHovering] = useState(false);
+
+  return (
+    <span
+      className={styles.iconWrap}
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => setHovering(false)}
+    >
+      <span className={`${styles.icon} ${styles[tone]}`}>{letter}</span>
+      {hovering && (
+        <div className={styles.tooltip}>
+          {label}: <strong>{formatDate(date)}</strong>
+        </div>
+      )}
+    </span>
+  );
+}
+
 /**
  * Shared earnings/ex-dividend warning icon - one component dropped into
  * every place a ticker is rendered (Positions, TSP Scan, CSP Scan, Ticker
@@ -29,16 +51,8 @@ export default function CalendarBadge({ nextEarningsDate, nextExDividendDate }) 
 
   return (
     <span className={styles.wrap}>
-      {showEarnings && (
-        <span className={`${styles.icon} ${styles.earnings}`} title={`Earnings: ${formatDate(nextEarningsDate)}`}>
-          E
-        </span>
-      )}
-      {showDividend && (
-        <span className={`${styles.icon} ${styles.dividend}`} title={`Ex-Dividend: ${formatDate(nextExDividendDate)}`}>
-          D
-        </span>
-      )}
+      {showEarnings && <BadgeIcon tone="earnings" letter="E" label="Earnings" date={nextEarningsDate} />}
+      {showDividend && <BadgeIcon tone="dividend" letter="D" label="Ex-Dividend" date={nextExDividendDate} />}
     </span>
   );
 }
