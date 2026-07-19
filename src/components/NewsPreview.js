@@ -63,7 +63,10 @@ export default function NewsPreview({ scope, scopeKey, getEntry, children }) {
 
       {hovering && !expanded && (
         <div className={styles.tooltip}>
-          {entry.sentiment_lean && <div className={styles.lean}>{entry.sentiment_lean}</div>}
+          <div className={styles.tooltipMeta}>
+            {entry.sentiment_lean && <span className={styles.lean}>{entry.sentiment_lean}</span>}
+            <span className={styles.timestamp}>{timeAgo(entry.created_at)}</span>
+          </div>
           <div className={styles.preview}>{stripMarkdownForPreview(entry.summary)}</div>
           <div className={styles.hint}>Click for full analysis</div>
         </div>
