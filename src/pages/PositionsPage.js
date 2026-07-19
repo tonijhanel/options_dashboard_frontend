@@ -36,12 +36,7 @@ const TIER_RANK = { action: 0, caution: 1, safe: 2 };
 // so there's no way for them to drift out of sync with each other.
 const COLUMNS = [
   { key: 'ticker', label: 'Ticker', alwaysVisible: true, sortable: true, getSortValue: (p) => p.ticker,
-    render: (p) => (
-      <>
-        <span className={styles.ticker}>{p.ticker}</span>
-        <CalendarBadge nextEarningsDate={p.next_earnings_date} nextExDividendDate={p.next_ex_dividend_date} />
-      </>
-    ) },
+    render: (p) => <span className={styles.ticker}>{p.ticker}</span> },
   { key: 'sector', label: 'Sector', sortable: true, getSortValue: (p) => p.sector || 'Untracked',
     render: (p) => <span className={p.sector ? '' : tableStyles.muted}>{p.sector || 'Untracked'}</span> },
   { key: 'spot', label: 'Spot', sortable: true, getSortValue: (p) => p.spot,
@@ -292,9 +287,20 @@ export default function PositionsPage() {
                       {visibleColumns.map((col) => (
                         <td key={col.key} className={['status', 'recommendation', 'sector', 'roc_tier'].includes(col.key) ? '' : 'num'}>
                           {col.key === 'ticker' ? (
-                            <NewsPreview scope="ticker" scopeKey={p.ticker} getEntry={getNewsEntry}>
-                              {col.render(p)}
-                            </NewsPreview>
+                            <>
+                              {/* CalendarBadge is a SIBLING of NewsPreview, not nested inside it -
+                                  nesting it meant hovering the badge also triggered NewsPreview's own
+                                  hover state (mouseenter fires on NewsPreview's wrapping span the
+                                  moment the pointer crosses into it, badge included), so both tooltips
+                                  popped up overlapping each other. */}
+                              <NewsPreview scope="ticker" scopeKey={p.ticker} getEntry={getNewsEntry}>
+                                {col.render(p)}
+                              </NewsPreview>
+                              <CalendarBadge
+                                nextEarningsDate={p.next_earnings_date}
+                                nextExDividendDate={p.next_ex_dividend_date}
+                              />
+                            </>
                           ) : (
                             col.render(p)
                           )}
