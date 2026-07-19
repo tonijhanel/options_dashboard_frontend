@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { getPositions, getRealizedPnl, getHedgeStatus } from '../api/client';
+import { getPositions, getRealizedPnl, getHedgeStatus, getLiquidityStatus } from '../api/client';
 import { useApiData } from '../lib/useApiData';
 import { useSortableData } from '../lib/useSortableData';
 import { computeStatus } from '../lib/positionSignal';
@@ -21,6 +21,7 @@ import { useNewsSentiment } from '../lib/useNewsSentiment';
 import SortableHeader from '../components/SortableHeader';
 import ColumnPicker, { useColumnVisibility } from '../components/ColumnPicker';
 import CalendarBadge from '../components/CalendarBadge';
+import LiquidityBadge from '../components/LiquidityBadge';
 import { computeHedgeEntryDebit, formatHedgeLegsSummary } from '../lib/hedgeMath';
 import tableStyles from '../components/Table.module.css';
 import styles from './PositionsPage.module.css';
@@ -29,6 +30,12 @@ import styles from './PositionsPage.module.css';
 // (most urgent) sorts first in ascending order, matching how you'd
 // actually want to triage these.
 const TIER_RANK = { action: 0, caution: 1, safe: 2 };
+
+// Same ordering intent as TIER_RANK - most urgent (critical) sorts first.
+// A position with no snapshot yet (no baseline, or the daily job hasn't
+// run since it opened) sorts last, alongside 'ok'-severity ones, rather
+// than being mistaken for either extreme.
+const LIQUIDITY_RANK = { critical: 0, warning: 1, ok: 2 };
 
 // Single source of truth for the table: label, whether it's sortable, how
 // to pull a comparable value out of a row for sorting, and how to render
@@ -88,6 +95,9 @@ const COLUMNS = [
       const tier = computeROCTier(computeAnnualizedROC(computeROC(p.entry_price, p.strike), p.dte));
       return <ROCTierBadge tier={tier} />;
     } },
+  { key: 'liquidity', label: 'Liquidity', sortable: true,
+    getSortValue: (p) => LIQUIDITY_RANK[p.liquidity?.severity] ?? 3,
+    render: (p) => <LiquidityBadge snapshot={p.liquidity} /> },
   { key: 'status', label: 'Status', sortable: true, getSortValue: (p) => p.status.label,
     render: (p) => (
       <PositionReviewHover ticker={p.ticker} strike={p.strike} spot={p.spot} recommendation={p.recommendation}>
@@ -105,7 +115,18 @@ export default function PositionsPage() {
   const { data, error, loading, refetch } = useApiData(getPositions, 'positions');
   const { data: realizedPnl, refetch: refetchRealizedPnl } = useApiData(getRealizedPnl, 'realized-pnl');
   const { data: hedgeStatus } = useApiData(getHedgeStatus, 'hedgeStatus');
+  const { data: liquidityStatus } = useApiData(getLiquidityStatus, 'liquidityStatus');
   const { getEntry: getNewsEntry } = useNewsSentiment();
+
+  // Keyed by position_log_id (docs/quantfeatures.md Feature 2) - the only
+  // stable id a live position and its liquidity_snapshots history share.
+  const liquidityByPosition = useMemo(() => {
+    const map = {};
+    (liquidityStatus?.results || []).forEach((snapshot) => {
+      map[snapshot.position_id] = snapshot;
+    });
+    return map;
+  }, [liquidityStatus]);
 
   const positionsWithStatus = useMemo(() => {
     if (!data?.positions) return [];
@@ -113,8 +134,9 @@ export default function PositionsPage() {
       ...p,
       status: computeStatus(p.entry_price, p.mid, p.spot, p.strike, p.dte, profitTarget),
       recommendation: computeRollRecommendation(p),
+      liquidity: liquidityByPosition[p.position_log_id],
     }));
-  }, [data, profitTarget]);
+  }, [data, profitTarget, liquidityByPosition]);
 
   // Sensible first-time defaults: hide secondary technical detail
   // (sector context, raw greeks/technicals, days held, non-annualized
@@ -285,7 +307,7 @@ export default function PositionsPage() {
                   return (
                     <tr key={`${key}-${i}`} className={styles.clickableRow} onClick={() => setSelectedKey(key)}>
                       {visibleColumns.map((col) => (
-                        <td key={col.key} className={['status', 'recommendation', 'sector', 'roc_tier'].includes(col.key) ? '' : 'num'}>
+                        <td key={col.key} className={['status', 'recommendation', 'sector', 'roc_tier', 'liquidity'].includes(col.key) ? '' : 'num'}>
                           {col.key === 'ticker' ? (
                             <>
                               {/* CalendarBadge is a SIBLING of NewsPreview, not nested inside it -

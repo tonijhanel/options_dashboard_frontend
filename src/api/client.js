@@ -102,6 +102,11 @@ export function getDataAnomalies({ source, severity, since } = {}) {
   return request(`/anomalies${qs ? `?${qs}` : ''}`);
 }
 
+/** Latest liquidity decay snapshot per open position (docs/quantfeatures.md Feature 2) - reads stored data, no live Schwab call. */
+export function getLiquidityStatus() {
+  return request('/liquidity-status');
+}
+
 export function getMarketCalendar(daysAhead = 30) {
   return request(`/market-calendar?days_ahead=${daysAhead}`);
 }
