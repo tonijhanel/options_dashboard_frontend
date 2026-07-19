@@ -52,7 +52,7 @@ export default function CalendarBadge({ nextEarningsDate, nextExDividendDate }) 
   return (
     <span className={styles.wrap}>
       {showEarnings && <BadgeIcon tone="earnings" letter="E" label="Earnings" date={nextEarningsDate} />}
-      {showDividend && <BadgeIcon tone="dividend" letter="D" label="Ex-Dividend" date={nextExDividendDate} />}
+      {showDividend && <BadgeIcon tone="dividend" letter="D" label="Est. Ex-Dividend" date={nextExDividendDate} />}
     </span>
   );
 }
