@@ -92,6 +92,16 @@ export function getSchwabTokenHealth() {
   return request('/schwab-token-health');
 }
 
+/** Data anomalies detected on ingest (docs/quantfeatures.md Feature 1) - optionally filtered. */
+export function getDataAnomalies({ source, severity, since } = {}) {
+  const params = new URLSearchParams();
+  if (source) params.set('source', source);
+  if (severity) params.set('severity', severity);
+  if (since) params.set('since', since);
+  const qs = params.toString();
+  return request(`/anomalies${qs ? `?${qs}` : ''}`);
+}
+
 export function getMarketCalendar(daysAhead = 30) {
   return request(`/market-calendar?days_ahead=${daysAhead}`);
 }
