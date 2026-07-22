@@ -218,6 +218,15 @@ function RowActions({ row, onUpdated, isClosed }) {
     }
   }
 
+  // BWBs are a 3-leg structure this form's Edit/Close (built for
+  // naked-put/vertical-spread's 1-2 strike shape) doesn't understand -
+  // editing here would silently misclassify the row rather than actually
+  // updating its 3 legs. Manage these on the dedicated BWB Trades page
+  // instead (docs/bwb_trades.md).
+  if (row.position_type === 'bwb_put') {
+    return <span className={tableStyles.muted}>Manage on BWB Trades page</span>;
+  }
+
   if (mode === null) {
     return (
       <div className={styles.rowActions}>
@@ -473,7 +482,13 @@ export default function PositionLogPage() {
                 <tr key={row.id}>
                   <td className={styles.ticker}>{row.ticker}</td>
                   {!hidden.has('position_type') && (
-                    <td>{row.position_type === 'vertical_spread' ? 'Spread' : 'Naked Put'}</td>
+                    <td>
+                      {row.position_type === 'vertical_spread'
+                        ? 'Spread'
+                        : row.position_type === 'bwb_put'
+                          ? 'BWB'
+                          : 'Naked Put'}
+                    </td>
                   )}
                   {!hidden.has('strike') && (
                     <td className="num">

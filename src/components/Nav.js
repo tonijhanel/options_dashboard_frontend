@@ -14,6 +14,7 @@ const POSITION_MANAGEMENT_ITEMS = [
   { to: '/position-log', label: 'Position Log' },
   { to: '/pnl-history', label: 'P&L History' },
   { to: '/hedge', label: 'Hedge' },
+  { to: '/bwb-trades', label: 'BWB Trades' },
 ];
 
 const POSITION_SCANNER_ITEMS = [

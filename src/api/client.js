@@ -202,3 +202,21 @@ export function closeHedgePosition(id, payload) {
 export function getActiveSpreads() {
   return request('/active-spreads');
 }
+
+export function getActiveBwbs() {
+  return request('/active-bwbs');
+}
+
+export function createBwbPosition(payload) {
+  return request('/bwb-positions', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function closeBwbPosition(id, payload) {
+  return request(`/bwb-positions/${id}/close`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}

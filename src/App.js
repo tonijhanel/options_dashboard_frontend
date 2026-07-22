@@ -10,6 +10,7 @@ import PnlHistoryPage from './pages/PnlHistoryPage';
 import TickerRegistryPage from './pages/TickerRegistryPage';
 import HedgePage from './pages/HedgePage';
 import ActiveSpreadsPage from './pages/ActiveSpreadsPage';
+import BwbTradesPage from './pages/BwbTradesPage';
 import styles from './App.module.css';
 
 export default function App() {
@@ -28,6 +29,7 @@ export default function App() {
           <Route path="/ticker-registry" element={<TickerRegistryPage />} />
           <Route path="/hedge" element={<HedgePage />} />
           <Route path="/active-spreads" element={<ActiveSpreadsPage />} />
+          <Route path="/bwb-trades" element={<BwbTradesPage />} />
         </Routes>
       </main>
     </BrowserRouter>
