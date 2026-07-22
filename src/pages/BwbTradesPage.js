@@ -14,7 +14,7 @@ import styles from './BwbTradesPage.module.css';
 // Puts only: long wing / short middle x2 / long wing, same expiration.
 function AddBwbForm({ onCreated, onCancel }) {
   const [form, setForm] = useState({
-    ticker: '', expiration: '', contracts: 1,
+    ticker: '', entryDate: new Date().toISOString().slice(0, 10), expiration: '', contracts: 1,
     longLowStrike: '', longLowPrice: '',
     shortMidStrike: '', shortMidPrice: '',
     longHighStrike: '', longHighPrice: '',
@@ -33,6 +33,7 @@ function AddBwbForm({ onCreated, onCancel }) {
     try {
       await createBwbPosition({
         ticker: form.ticker.trim().toUpperCase(),
+        entry_date: form.entryDate,
         expiration: form.expiration,
         contracts: Number(form.contracts),
         long_low: { strike: Number(form.longLowStrike), entry_price: Number(form.longLowPrice) },
@@ -51,7 +52,14 @@ function AddBwbForm({ onCreated, onCancel }) {
     <form onSubmit={handleSubmit} className={styles.addForm}>
       <div className={styles.addFormRow}>
         <input placeholder="Ticker" value={form.ticker} onChange={(e) => update('ticker', e.target.value)} required className={styles.formInput} />
-        <input placeholder="Expiration (YYYY-MM-DD)" type="date" value={form.expiration} onChange={(e) => update('expiration', e.target.value)} required className={styles.formInput} />
+        <label className={styles.legLabel}>
+          Date Opened
+          <input type="date" value={form.entryDate} onChange={(e) => update('entryDate', e.target.value)} required className={styles.formInput} />
+        </label>
+        <label className={styles.legLabel}>
+          Expiration
+          <input type="date" value={form.expiration} onChange={(e) => update('expiration', e.target.value)} required className={styles.formInput} />
+        </label>
         <input placeholder="Contracts" type="number" min="1" value={form.contracts} onChange={(e) => update('contracts', e.target.value)} required className={styles.formInputSmall} />
       </div>
       <div className={styles.addFormRow}>
