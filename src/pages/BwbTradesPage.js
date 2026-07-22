@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { getActiveBwbs, createBwbPosition, closeBwbPosition } from '../api/client';
+import { getActiveBwbs, createBwbPosition, closeBwbPosition, deleteBwbPosition } from '../api/client';
 import { useApiData } from '../lib/useApiData';
 import { useSortableData } from '../lib/useSortableData';
 import { LoadingView, ErrorView, EmptyView } from '../components/StateViews';
@@ -98,8 +98,8 @@ function AddBwbForm({ onCreated, onCancel }) {
 // quotes (already fetched for Current Net Value) - a reasonable starting
 // point, overwritable with the real fill price. Same pattern as Active
 // Spreads' SpreadRowActions, just 3 legs instead of 2.
-function BwbRowActions({ row, onClosed }) {
-  const [closing, setClosing] = useState(false);
+function BwbRowActions({ row, onClosed, onDeleted }) {
+  const [mode, setMode] = useState(null); // null | 'closing' | 'deleting'
   const [saving, setSaving] = useState(false);
   const [longLowClose, setLongLowClose] = useState(row.long_low_mid != null ? row.long_low_mid.toFixed(2) : '');
   const [shortMidClose, setShortMidClose] = useState(row.short_mid_mid != null ? row.short_mid_mid.toFixed(2) : '');
@@ -127,8 +127,42 @@ function BwbRowActions({ row, onClosed }) {
     }
   }
 
-  if (!closing) {
-    return <button className={styles.actionButtonClose} onClick={() => setClosing(true)}>Close</button>;
+  // Irreversible - for correcting a mis-entered trade (e.g. a strike that
+  // turns out not to be a real listed one), not for a normal exit. Use
+  // Close for that instead, which keeps the trade in your history.
+  async function handleDelete() {
+    setSaving(true);
+    setError(null);
+    try {
+      await deleteBwbPosition(row.id);
+      onDeleted();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (mode === null) {
+    return (
+      <div className={styles.rowActions}>
+        <button className={styles.actionButtonClose} onClick={() => setMode('closing')}>Close</button>
+        <button className={styles.deleteButton} onClick={() => setMode('deleting')}>Delete</button>
+      </div>
+    );
+  }
+
+  if (mode === 'deleting') {
+    return (
+      <div className={styles.inlinePanel}>
+        <span className={styles.deleteWarning}>Permanently delete this BWB? This can't be undone.</span>
+        <button className={styles.deleteButton} onClick={handleDelete} disabled={saving}>
+          {saving ? 'Deleting…' : 'Confirm Delete'}
+        </button>
+        <button className={styles.cancelButton} onClick={() => setMode(null)}>Cancel</button>
+        {error && <div className={styles.formError}>{error}</div>}
+      </div>
+    );
   }
 
   return (
@@ -148,7 +182,7 @@ function BwbRowActions({ row, onClosed }) {
       <button className={styles.actionButtonClose} onClick={handleClose} disabled={saving}>
         {saving ? 'Closing…' : 'Confirm Close'}
       </button>
-      <button className={styles.cancelButton} onClick={() => setClosing(false)}>Cancel</button>
+      <button className={styles.cancelButton} onClick={() => setMode(null)}>Cancel</button>
       {error && <div className={styles.formError}>{error}</div>}
     </div>
   );
@@ -264,7 +298,7 @@ export default function BwbTradesPage() {
                       </td>
                     ))}
                     <td className={styles.actionsCell}>
-                      <BwbRowActions row={r} onClosed={refetch} />
+                      <BwbRowActions row={r} onClosed={refetch} onDeleted={refetch} />
                     </td>
                   </tr>
                 ))}

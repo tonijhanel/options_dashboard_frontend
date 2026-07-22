@@ -220,3 +220,9 @@ export function closeBwbPosition(id, payload) {
     body: JSON.stringify(payload),
   });
 }
+
+export function deleteBwbPosition(id) {
+  return request(`/bwb-positions/${id}`, {
+    method: 'DELETE',
+  });
+}
