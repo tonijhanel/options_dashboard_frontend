@@ -418,7 +418,7 @@ export default function HedgeCard() {
                   </div>
                 )}
 
-                <button className={styles.actionButton} onClick={toggleCloseForm}>
+                <button className={styles.closeRollButton} onClick={toggleCloseForm}>
                   {showCloseForm ? 'Cancel' : 'Close / Roll This Hedge'}
                 </button>
 

@@ -301,6 +301,24 @@
   color: var(--text-primary);
 }
 
+/* The one button that actually gates the whole close-then-open flow -
+   given its own more visible treatment rather than sharing .actionButton's
+   faint secondary style with lower-stakes actions like "+ Add Spread Leg" -
+   it was reported hard to even notice at .actionButton's contrast level. */
+.closeRollButton {
+  padding: var(--space-2) var(--space-4);
+  background: var(--accent);
+  color: var(--bg);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.closeRollButton:hover {
+  background: var(--accent-hover);
+}
+
 .closeForm {
   display: flex;
   flex-wrap: wrap;
