@@ -15,13 +15,14 @@ const TYPE_FILTERS = [
   { key: 'all', label: 'All' },
   { key: 'naked_put', label: 'Cash-Secured Puts' },
   { key: 'vertical_spread', label: 'Spreads' },
+  { key: 'bwb_put', label: 'BWB' },
 ];
 
 const OPENED_COLUMNS = [
   { key: 'ticker', label: 'Ticker', alwaysVisible: true, sortable: true, getSortValue: (p) => p.ticker,
     render: (p) => <span className={styles.ticker}>{p.ticker}</span> },
   { key: 'position_type', label: 'Type', sortable: true, getSortValue: (p) => p.position_type,
-    render: (p) => (p.position_type === 'vertical_spread' ? 'Spread' : 'Naked Put') },
+    render: (p) => (p.position_type === 'vertical_spread' ? 'Spread' : p.position_type === 'bwb_put' ? 'BWB' : 'Naked Put') },
   { key: 'strike', label: 'Strike', sortable: true, getSortValue: (p) => p.short_strike ?? p.strike,
     render: (p) => (p.position_type === 'vertical_spread' ? `${p.short_strike}/${p.long_strike}` : p.strike?.toFixed(2)) },
   { key: 'contracts', label: 'Contracts', sortable: true, getSortValue: (p) => p.contracts,
