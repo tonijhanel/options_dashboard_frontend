@@ -226,3 +226,21 @@ export function deleteBwbPosition(id) {
     method: 'DELETE',
   });
 }
+
+/** Positions manually excluded from /positions - see docs/supabase_migration_ignored_positions.sql. */
+export function getIgnoredPositions() {
+  return request('/ignored-positions');
+}
+
+export function ignorePosition(payload) {
+  return request('/ignored-positions', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function unignorePosition(id) {
+  return request(`/ignored-positions/${id}`, {
+    method: 'DELETE',
+  });
+}

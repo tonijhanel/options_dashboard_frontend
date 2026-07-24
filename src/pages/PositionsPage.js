@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { getPositions, getRealizedPnl, getHedgeStatus, getLiquidityStatus } from '../api/client';
+import { getPositions, getRealizedPnl, getHedgeStatus, getLiquidityStatus, getIgnoredPositions, ignorePosition, unignorePosition } from '../api/client';
 import { useApiData } from '../lib/useApiData';
 import { useSortableData } from '../lib/useSortableData';
 import { computeStatus } from '../lib/positionSignal';
@@ -25,6 +25,45 @@ import LiquidityBadge from '../components/LiquidityBadge';
 import { computeHedgeEntryDebit, formatHedgeLegsSummary } from '../lib/hedgeMath';
 import tableStyles from '../components/Table.module.css';
 import styles from './PositionsPage.module.css';
+
+// Manual per-position exclusion (2026-07-23) - replaces writing new
+// detection code every time SnapTrade reports a trade shape this app
+// doesn't handle cleanly (e.g. an E*TRADE debit spread purchased as a
+// hedge) with a single reusable "ignore this one" mechanism. Filtered out
+// server-side before enrichment, and auto-clears itself once the position
+// actually closes - see docs/supabase_migration_ignored_positions.sql.
+function IgnoreButton({ position, onIgnored }) {
+  const [ignoring, setIgnoring] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function handleIgnore(e) {
+    e.stopPropagation(); // don't also trigger the row's own onClick (detail-panel selection)
+    setIgnoring(true);
+    setError(null);
+    try {
+      await ignorePosition({
+        ticker: position.ticker,
+        strike: position.strike,
+        expiration: position.expiration,
+        contracts: position.contracts,
+      });
+      onIgnored();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setIgnoring(false);
+    }
+  }
+
+  return (
+    <span className={styles.ignoreCell}>
+      <button className={styles.ignoreButton} onClick={handleIgnore} disabled={ignoring}>
+        {ignoring ? 'Ignoring…' : 'Ignore'}
+      </button>
+      {error && <span className={styles.ignoreError}>{error}</span>}
+    </span>
+  );
+}
 
 // Tier ranking so "Recommendation" can be sorted meaningfully - action
 // (most urgent) sorts first in ascending order, matching how you'd
@@ -116,6 +155,7 @@ export default function PositionsPage() {
   const { data: realizedPnl, refetch: refetchRealizedPnl } = useApiData(getRealizedPnl, 'realized-pnl');
   const { data: hedgeStatus } = useApiData(getHedgeStatus, 'hedgeStatus');
   const { data: liquidityStatus } = useApiData(getLiquidityStatus, 'liquidityStatus');
+  const { data: ignoredPositions, refetch: refetchIgnored } = useApiData(getIgnoredPositions, 'ignoredPositions');
   const { getEntry: getNewsEntry } = useNewsSentiment();
 
   // Keyed by position_log_id (docs/quantfeatures.md Feature 2) - the only
@@ -299,6 +339,7 @@ export default function PositionsPage() {
                       onSort={requestSort}
                     />
                   ))}
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -328,6 +369,9 @@ export default function PositionsPage() {
                           )}
                         </td>
                       ))}
+                      <td className={styles.actionsCell}>
+                        <IgnoreButton position={p} onIgnored={() => { refetch(); refetchIgnored(); }} />
+                      </td>
                     </tr>
                   );
                 })}
@@ -391,6 +435,27 @@ export default function PositionsPage() {
           <ul>
             {data._excluded_multi_leg_positions.map((note, i) => (
               <li key={i}>{note}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {ignoredPositions?.results?.length > 0 && (
+        <div className={styles.excludedNote}>
+          <strong>Ignored ({ignoredPositions.results.length}):</strong> manually hidden from the table
+          above - clears automatically once the position actually closes, or un-ignore it now.
+          <ul>
+            {ignoredPositions.results.map((entry) => (
+              <li key={entry.id}>
+                {entry.ticker} ${Number(entry.strike).toFixed(2)} exp {entry.expiration} x{entry.contracts}
+                {' '}
+                <button
+                  className={styles.unignoreLink}
+                  onClick={async () => { await unignorePosition(entry.id); refetch(); refetchIgnored(); }}
+                >
+                  Un-ignore
+                </button>
+              </li>
             ))}
           </ul>
         </div>
