@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { getActiveSpreads, updatePositionLogEntry } from '../api/client';
+import { getActiveSpreads, updatePositionLogEntry, getIgnoredPositions, ignorePosition, unignorePosition } from '../api/client';
 import { useApiData } from '../lib/useApiData';
 import { useSortableData } from '../lib/useSortableData';
 import { LoadingView, ErrorView, EmptyView } from '../components/StateViews';
@@ -77,6 +77,45 @@ function SpreadRowActions({ row, onClosed }) {
   );
 }
 
+// Manual per-position exclusion (2026-07-23) - a spread is a DIFFERENT
+// pipeline from the naked-put Positions page (this page reads already-
+// logged position_log rows, not live SnapTrade detection directly), so
+// it needs its own Ignore button hitting the same /ignored-positions
+// endpoint with strike=short_strike - see
+// docs/supabase_migration_ignored_positions_spreads.sql.
+function IgnoreButton({ row, onIgnored }) {
+  const [ignoring, setIgnoring] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function handleIgnore() {
+    setIgnoring(true);
+    setError(null);
+    try {
+      await ignorePosition({
+        ticker: row.ticker,
+        strike: row.short_strike,
+        long_strike: row.long_strike,
+        expiration: row.expiration,
+        contracts: row.contracts,
+      });
+      onIgnored();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setIgnoring(false);
+    }
+  }
+
+  return (
+    <span className={styles.ignoreCell}>
+      <button className={styles.ignoreButton} onClick={handleIgnore} disabled={ignoring}>
+        {ignoring ? 'Ignoring…' : 'Ignore'}
+      </button>
+      {error && <span className={styles.ignoreError}>{error}</span>}
+    </span>
+  );
+}
+
 // Same column-definition pattern as PositionsPage/TspScanPage - one source
 // of truth driving both the column picker and the sort logic.
 const COLUMNS = [
@@ -116,6 +155,7 @@ const NON_NUMERIC_COLUMNS = ['ticker', 'expiration'];
 
 export default function ActiveSpreadsPage() {
   const { data, error, loading, refetch } = useApiData(getActiveSpreads, 'activeSpreads');
+  const { data: ignoredPositions, refetch: refetchIgnored } = useApiData(getIgnoredPositions, 'ignoredPositions');
 
   const spreads = data?.spreads || [];
   const { hidden, toggle, visibleColumns } = useColumnVisibility(COLUMNS, 'activeSpreadsTable');
@@ -175,6 +215,7 @@ export default function ActiveSpreadsPage() {
                     ))}
                     <td className={styles.actionsCell}>
                       <SpreadRowActions row={r} onClosed={refetch} />
+                      <IgnoreButton row={r} onIgnored={() => { refetch(); refetchIgnored(); }} />
                     </td>
                   </tr>
                 ))}
@@ -188,6 +229,29 @@ export default function ActiveSpreadsPage() {
         <div className={styles.errorsNote}>
           <strong>Some spreads may be missing or incomplete:</strong>
           <p>{data._error}</p>
+        </div>
+      )}
+
+      {ignoredPositions?.results?.length > 0 && (
+        <div className={styles.errorsNote}>
+          <strong>Ignored ({ignoredPositions.results.length}):</strong> manually hidden - clears
+          automatically once the position actually closes, or un-ignore it now. Shared with the
+          Positions page (naked puts and spreads use the same list).
+          <ul className={styles.ignoredList}>
+            {ignoredPositions.results.map((entry) => (
+              <li key={entry.id}>
+                {entry.ticker} ${Number(entry.strike).toFixed(2)}
+                {entry.long_strike != null ? `/${Number(entry.long_strike).toFixed(2)}` : ''} exp {entry.expiration} x{entry.contracts}
+                {' '}
+                <button
+                  className={styles.unignoreLink}
+                  onClick={async () => { await unignorePosition(entry.id); refetch(); refetchIgnored(); }}
+                >
+                  Un-ignore
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>

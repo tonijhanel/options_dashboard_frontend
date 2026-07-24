@@ -28,7 +28,7 @@ export default function Nav() {
       <div className={styles.brand}>Options Dashboard</div>
       <div className={styles.links}>
         <NavLink to="/" end className={({ isActive }) => (isActive ? `${styles.link} ${styles.active}` : styles.link)}>
-          Positions
+          CSP Positions
         </NavLink>
         <NavLink to="/tsp-scan" className={({ isActive }) => (isActive ? `${styles.link} ${styles.active}` : styles.link)}>
           Bulk Scan
