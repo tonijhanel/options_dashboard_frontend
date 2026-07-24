@@ -5,21 +5,27 @@ import SchwabTokenStatus from './SchwabTokenStatus';
 import AnomalyStatusBadge from './AnomalyStatusBadge';
 import LogoutButton from './LogoutButton';
 
-// Per docs/navupdates.md: 6 top-level items grouped by actual usage
-// frequency/intent, not build history. Positions, Bulk Scan, and Active
-// Spreads stay standalone (checked often enough to deserve zero-click
-// access); everything else groups into one of two dropdowns.
+// Per docs/navupdates.md: top-level items grouped by actual usage
+// frequency/intent, not build history. Positions and Bulk Scan stay
+// standalone (checked often enough to deserve zero-click access); Active
+// Spreads is now its own dropdown (2026-07-24) splitting vertical spreads
+// from BWBs, since they're tracked on two separate pages; everything else
+// groups into one of the other two dropdowns.
 const POSITION_MANAGEMENT_ITEMS = [
   { to: '/portfolio-overview', label: 'Portfolio Overview' },
   { to: '/position-log', label: 'Position Log' },
   { to: '/pnl-history', label: 'P&L History' },
   { to: '/hedge', label: 'Hedge' },
-  { to: '/bwb-trades', label: 'BWB Trades' },
 ];
 
 const POSITION_SCANNER_ITEMS = [
   { to: '/csp-scan', label: 'Single Position Scan' },
   { to: '/ticker-registry', label: 'Ticker Registry' },
+];
+
+const ACTIVE_SPREADS_ITEMS = [
+  { to: '/active-spreads', label: 'Vertical Spreads' },
+  { to: '/bwb-trades', label: 'BWB Spreads' },
 ];
 
 export default function Nav() {
@@ -33,12 +39,7 @@ export default function Nav() {
         <NavLink to="/tsp-scan" className={({ isActive }) => (isActive ? `${styles.link} ${styles.active}` : styles.link)}>
           Bulk Scan
         </NavLink>
-        <NavLink
-          to="/active-spreads"
-          className={({ isActive }) => (isActive ? `${styles.link} ${styles.active}` : styles.link)}
-        >
-          Active Spreads
-        </NavLink>
+        <NavDropdown label="Active Spreads" items={ACTIVE_SPREADS_ITEMS} />
         <NavDropdown label="Position Management" items={POSITION_MANAGEMENT_ITEMS} />
         <NavDropdown label="Position Scanner" items={POSITION_SCANNER_ITEMS} />
         <NavLink
