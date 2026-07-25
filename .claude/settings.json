@@ -1,10 +1,13 @@
 {
   "permissions": {
+    "allow": [
+      "Read(//c/options_dashboard/backend/clients/**)",
+      "Bash(/c/options_dashboard/.venv/Scripts/python.exe -c ' *)",
+      "Bash(/c/options_dashboard/.venv/Scripts/python.exe -m pip show snaptrade-python-sdk)",
+      "Bash(/c/options_dashboard/.venv/Scripts/python.exe -c \"import snaptrade_client; print\\(snaptrade_client.__file__\\)\")"
+    ],
     "additionalDirectories": [
       "C:\\options_dashboard\\backend"
-    ],
-    "allow": [
-      "Read(//c/options_dashboard/backend/clients/**)"
     ]
   }
 }
