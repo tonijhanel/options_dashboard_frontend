@@ -42,6 +42,8 @@ const COLUMNS = [
     render: (p) => p.mid?.toFixed(2) },
   { key: 'monthly_yield_pct', label: 'ROC', sortable: true, getSortValue: (p) => p.monthly_yield_pct,
     render: (p) => (p.monthly_yield_pct !== null && p.monthly_yield_pct !== undefined ? `${p.monthly_yield_pct.toFixed(2)}%` : '—') },
+  { key: 'iv_rv_ratio', label: 'IV/RV', sortable: true, getSortValue: (p) => p.iv_rv_ratio,
+    render: (p) => (p.iv_rv_ratio !== null && p.iv_rv_ratio !== undefined ? p.iv_rv_ratio.toFixed(2) : '—') },
   { key: 'annualized_yield_pct', label: 'Annualized ROC', sortable: true, getSortValue: (p) => p.annualized_yield_pct,
     render: (p) => (p.annualized_yield_pct !== null && p.annualized_yield_pct !== undefined ? `${p.annualized_yield_pct.toFixed(1)}%` : '—') },
   { key: 'roc_tier', label: 'ROC Tier', sortable: true,
