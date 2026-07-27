@@ -11,6 +11,14 @@ import styles from './CspScanPage.module.css';
 
 const DEFAULTS = { ticker: '', minDelta: 0.1, maxDelta: 0.25, minDte: 21, maxDte: 60, includeIlliquid: false };
 
+// bid/ask, not (ask-bid)/mid - 1.0 means zero spread (bid == ask),
+// trending toward 0 as the spread widens. Target filter per the user's
+// own screening rule: > 0.85-0.90 is a tight-enough market to trust the mid.
+function bidAskRatio(c) {
+  if (c.bid === null || c.bid === undefined || !c.ask) return null;
+  return c.bid / c.ask;
+}
+
 // Same column-definition pattern as TspScanPage/PositionsPage - one
 // source of truth driving both the column picker and the sort logic.
 const COLUMNS = [
@@ -26,6 +34,8 @@ const COLUMNS = [
     render: (c) => c.bid?.toFixed(2) },
   { key: 'ask', label: 'Ask', sortable: true, getSortValue: (c) => c.ask,
     render: (c) => c.ask?.toFixed(2) },
+  { key: 'bid_ask_ratio', label: 'Bid/Ask', sortable: true, getSortValue: (c) => bidAskRatio(c),
+    render: (c) => { const r = bidAskRatio(c); return r !== null ? r.toFixed(2) : '—'; } },
   { key: 'mid', label: 'Mid', sortable: true, getSortValue: (c) => c.mid,
     render: (c) => c.mid?.toFixed(2) },
   { key: 'iv_pct', label: 'IV', sortable: true, getSortValue: (c) => c.iv_pct,
