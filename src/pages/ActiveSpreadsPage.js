@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { getActiveSpreads, updatePositionLogEntry, getIgnoredPositions, ignorePosition, unignorePosition } from '../api/client';
+import { useMemo, useState } from 'react';
+import { getActiveSpreads, updatePositionLogEntry, getIgnoredPositions, ignorePosition, unignorePosition, getLiquidityStatus } from '../api/client';
 import { useApiData } from '../lib/useApiData';
 import { useSortableData } from '../lib/useSortableData';
 import { LoadingView, ErrorView, EmptyView } from '../components/StateViews';
@@ -7,8 +7,11 @@ import { formatCurrency } from '../components/SummaryBar';
 import PageHeader from '../components/PageHeader';
 import SortableHeader from '../components/SortableHeader';
 import ColumnPicker, { useColumnVisibility } from '../components/ColumnPicker';
+import LiquidityBadge from '../components/LiquidityBadge';
 import tableStyles from '../components/Table.module.css';
 import styles from './ActiveSpreadsPage.module.css';
+
+const LIQUIDITY_RANK = { critical: 0, warning: 1, ok: 2 };
 
 // Same visual/interaction pattern as Position Log's own Close action
 // (docs/spreadclose.md - reuses the existing PATCH /position-log/<id>
@@ -149,15 +152,35 @@ const COLUMNS = [
     render: (r) => (r.roc != null ? `${r.roc.toFixed(1)}%` : '—') },
   { key: 'annualized_roc', label: 'Annualized ROC', sortable: true, getSortValue: (r) => r.annualized_roc,
     render: (r) => (r.annualized_roc != null ? `${r.annualized_roc.toFixed(1)}%` : '—') },
+  { key: 'liquidity', label: 'Liquidity', sortable: true,
+    getSortValue: (r) => LIQUIDITY_RANK[r.liquidity?.severity] ?? 3,
+    render: (r) => <LiquidityBadge snapshot={r.liquidity} /> },
 ];
 
-const NON_NUMERIC_COLUMNS = ['ticker', 'expiration'];
+const NON_NUMERIC_COLUMNS = ['ticker', 'expiration', 'liquidity'];
 
 export default function ActiveSpreadsPage() {
   const { data, error, loading, refetch } = useApiData(getActiveSpreads, 'activeSpreads');
   const { data: ignoredPositions, refetch: refetchIgnored } = useApiData(getIgnoredPositions, 'ignoredPositions');
+  const { data: liquidityStatus } = useApiData(getLiquidityStatus, 'liquidityStatus');
 
-  const spreads = data?.spreads || [];
+  // Keyed by position_id (docs/liquiddecay.md) - every position_log row's
+  // own id, regardless of position_type (naked_put, vertical_spread,
+  // bwb_put all key their liquidity_snapshots the same way - see
+  // services/liquidity_monitor.py's module docstring for why this is
+  // position_id, not strategy_group).
+  const liquidityByPosition = useMemo(() => {
+    const map = {};
+    (liquidityStatus?.results || []).forEach((snapshot) => {
+      map[snapshot.position_id] = snapshot;
+    });
+    return map;
+  }, [liquidityStatus]);
+
+  const spreads = useMemo(
+    () => (data?.spreads || []).map((r) => ({ ...r, liquidity: liquidityByPosition[r.id] })),
+    [data, liquidityByPosition]
+  );
   const { hidden, toggle, visibleColumns } = useColumnVisibility(COLUMNS, 'activeSpreadsTable');
   const { sorted, sortKey, direction, requestSort } = useSortableData(
     spreads,

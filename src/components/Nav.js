@@ -3,6 +3,7 @@ import styles from './Nav.module.css';
 import NavDropdown from './NavDropdown';
 import SchwabTokenStatus from './SchwabTokenStatus';
 import AnomalyStatusBadge from './AnomalyStatusBadge';
+import LiquidityStatusBadge from './LiquidityStatusBadge';
 import LogoutButton from './LogoutButton';
 
 // Per docs/navupdates.md: top-level items grouped by actual usage
@@ -51,6 +52,7 @@ export default function Nav() {
       </div>
       <LogoutButton />
       <AnomalyStatusBadge />
+      <LiquidityStatusBadge />
       <SchwabTokenStatus />
     </nav>
   );

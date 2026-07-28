@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { getPositions, getMarketCalendar } from '../api/client';
+import { getPositions, getMarketCalendar, getLiquidityStatus } from '../api/client';
 import { useApiData } from '../lib/useApiData';
 import { computeCushionPct, computeAssignmentProbPct, assignmentRiskTone } from '../lib/positionRisk';
 import { useNewsSentiment } from '../lib/useNewsSentiment';
@@ -35,7 +35,18 @@ export default function PortfolioOverviewPage() {
     refetch: refetchCalendar,
   } = useApiData(getMarketCalendar, 'marketCalendar');
   const { getEntry: getNewsEntry } = useNewsSentiment();
+  const { data: liquidityStatus } = useApiData(getLiquidityStatus, 'liquidityStatus');
   const [metric, setMetric] = useState('premium');
+
+  // Keyed by position_id (docs/liquiddecay.md) - see ActiveSpreadsPage's
+  // identical comment for why this is position_id, not strategy_group.
+  const liquidityByPosition = useMemo(() => {
+    const map = {};
+    (liquidityStatus?.results || []).forEach((snapshot) => {
+      map[snapshot.position_id] = snapshot;
+    });
+    return map;
+  }, [liquidityStatus]);
 
   const sectorData = useMemo(() => {
     if (!data?.positions) return [];
@@ -117,6 +128,7 @@ export default function PortfolioOverviewPage() {
                     assignmentProbPct={computeAssignmentProbPct(p.spot, p.strike, p.dte, p.iv)}
                     tone={assignmentRiskTone(computeAssignmentProbPct(p.spot, p.strike, p.dte, p.iv))}
                     getNewsEntry={getNewsEntry}
+                    liquidity={liquidityByPosition[p.position_log_id]}
                   />
                 ))}
               </section>

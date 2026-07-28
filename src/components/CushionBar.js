@@ -1,7 +1,8 @@
 import styles from './CushionBar.module.css';
 import NewsPreview from './NewsPreview';
+import LiquidityBadge from './LiquidityBadge';
 
-export default function CushionBar({ ticker, strike, spot, cushionPct, assignmentProbPct, tone, getNewsEntry }) {
+export default function CushionBar({ ticker, strike, spot, cushionPct, assignmentProbPct, tone, getNewsEntry, liquidity }) {
   // Matches dashboard.py's progress normalization: cushion/20%, capped at 100%
   const barWidth = Math.min(Math.max(cushionPct / 20, 0), 1) * 100;
 
@@ -12,6 +13,7 @@ export default function CushionBar({ ticker, strike, spot, cushionPct, assignmen
           <NewsPreview scope="ticker" scopeKey={ticker} getEntry={getNewsEntry}>
             {ticker}
           </NewsPreview>
+          <LiquidityBadge snapshot={liquidity} />
         </span>
         <span className={styles.meta}>
           Strike <span className="num">${strike.toFixed(2)}</span> | Spot <span className="num">${spot.toFixed(2)}</span>

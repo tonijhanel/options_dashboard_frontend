@@ -1,15 +1,18 @@
-import { useState, useEffect, useCallback } from 'react';
-import { getPositionLog, createPositionLogEntry, updatePositionLogEntry } from '../api/client';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { getPositionLog, createPositionLogEntry, updatePositionLogEntry, getLiquidityStatus } from '../api/client';
+import { useApiData } from '../lib/useApiData';
 import { useSortableData } from '../lib/useSortableData';
 import { LoadingView, ErrorView, EmptyView } from '../components/StateViews';
 import PageHeader from '../components/PageHeader';
 import SortableHeader from '../components/SortableHeader';
 import ColumnPicker, { useColumnVisibility } from '../components/ColumnPicker';
+import LiquidityBadge from '../components/LiquidityBadge';
 import { formatDate } from '../lib/formatDate';
 import tableStyles from '../components/Table.module.css';
 import styles from './PositionLogPage.module.css';
 
 const CLOSE_REASON_SUGGESTIONS = ['assigned', 'bought_back', 'rolled', 'expired'];
+const LIQUIDITY_RANK = { critical: 0, warning: 1, ok: 2 };
 
 const OPEN_COLUMNS = [
   { key: 'ticker', label: 'Ticker', alwaysVisible: true, sortable: true, getSortValue: (r) => r.ticker },
@@ -23,6 +26,10 @@ const OPEN_COLUMNS = [
   { key: 'annualized_roc', label: 'Annualized ROC', sortable: true, getSortValue: (r) => r.annualized_roc },
   { key: 'entry_date', label: 'Entry Date', sortable: true, getSortValue: (r) => r.entry_date },
   { key: 'strategy_group', label: 'Strategy', sortable: true, getSortValue: (r) => r.strategy_group || '' },
+  // Only ever populated for OPEN rows (docs/liquiddecay.md's daily job
+  // only tracks open positions) - a closed row's liquidity is just
+  // undefined, which LiquidityBadge already renders as '—'.
+  { key: 'liquidity', label: 'Liquidity', sortable: true, getSortValue: (r) => LIQUIDITY_RANK[r.liquidity?.severity] ?? 3 },
   { key: 'source', label: 'Source', sortable: true, getSortValue: (r) => r.source },
 ];
 
@@ -380,6 +387,7 @@ export default function PositionLogPage() {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
+  const { data: liquidityStatus } = useApiData(getLiquidityStatus, 'liquidityStatus');
 
   const fetchData = useCallback(async (status) => {
     setLoading(true);
@@ -398,7 +406,20 @@ export default function PositionLogPage() {
     fetchData(statusView);
   }, [statusView, fetchData]);
 
-  const positions = data?.positions || [];
+  // Keyed by position_id (docs/liquiddecay.md) - see ActiveSpreadsPage's
+  // identical comment for why this is position_id, not strategy_group.
+  const liquidityByPosition = useMemo(() => {
+    const map = {};
+    (liquidityStatus?.results || []).forEach((snapshot) => {
+      map[snapshot.position_id] = snapshot;
+    });
+    return map;
+  }, [liquidityStatus]);
+
+  const positions = useMemo(
+    () => (data?.positions || []).map((r) => ({ ...r, liquidity: liquidityByPosition[r.id] })),
+    [data, liquidityByPosition]
+  );
   const columns = statusView === 'closed' ? CLOSED_COLUMNS : OPEN_COLUMNS;
   // Column visibility is keyed separately for open vs. closed, since the
   // two views have genuinely different columns (closed adds three more) -
@@ -530,6 +551,9 @@ export default function PositionLogPage() {
                   )}
                   {!hidden.has('strategy_group') && (
                     <td className={row.strategy_group ? '' : tableStyles.muted}>{row.strategy_group || '—'}</td>
+                  )}
+                  {!hidden.has('liquidity') && (
+                    <td><LiquidityBadge snapshot={row.liquidity} /></td>
                   )}
                   {!hidden.has('source') && <td className={tableStyles.muted}>{row.source}</td>}
                   {statusView === 'closed' && (
