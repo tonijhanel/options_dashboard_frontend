@@ -14,6 +14,13 @@ import styles from './PositionLogPage.module.css';
 const CLOSE_REASON_SUGGESTIONS = ['assigned', 'bought_back', 'rolled', 'expired'];
 const LIQUIDITY_RANK = { critical: 0, warning: 1, ok: 2 };
 
+// Stable module-level reference (not recreated every render) - the
+// "Rolled Into" picker needs the open-position list regardless of which
+// tab (Open/Closed) you're currently viewing, e.g. retroactively linking
+// an already-closed row's roll history from the Closed tab - so this is
+// fetched independently of statusView's own getPositionLog(statusView) call.
+const fetchOpenPositionsForRoll = () => getPositionLog('open');
+
 const OPEN_COLUMNS = [
   { key: 'ticker', label: 'Ticker', alwaysVisible: true, sortable: true, getSortValue: (r) => r.ticker },
   { key: 'position_type', label: 'Type', sortable: true, getSortValue: (r) => r.position_type },
@@ -424,6 +431,8 @@ export default function PositionLogPage() {
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const { data: liquidityStatus } = useApiData(getLiquidityStatus, 'liquidityStatus');
+  const { data: openPositionsForRoll, refetch: refetchOpenPositionsForRoll } =
+    useApiData(fetchOpenPositionsForRoll, 'positionLogOpenForRoll');
 
   const fetchData = useCallback(async (status) => {
     setLoading(true);
@@ -619,9 +628,9 @@ export default function PositionLogPage() {
                   <td>
                     <RowActions
                       row={row}
-                      onUpdated={() => fetchData(statusView)}
+                      onUpdated={() => { fetchData(statusView); refetchOpenPositionsForRoll(); }}
                       isClosed={statusView === 'closed'}
-                      openPositions={statusView === 'open' ? positions : []}
+                      openPositions={openPositionsForRoll?.positions || []}
                     />
                   </td>
                 </tr>
