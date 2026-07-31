@@ -90,12 +90,18 @@ function AddPositionForm({ onCreated, onCancel }) {
   );
 }
 
-function RowActions({ row, onUpdated, isClosed }) {
+function RowActions({ row, onUpdated, isClosed, openPositions }) {
   const [mode, setMode] = useState(null); // null | 'edit' | 'close'
   const [entryPrice, setEntryPrice] = useState(row.entry_price ?? '');
   const [entryDate, setEntryDate] = useState(row.entry_date ? row.entry_date.slice(0, 10) : '');
   const [closedPrice, setClosedPrice] = useState(row.closed_price ?? '');
   const [closeReason, setCloseReason] = useState(row.close_reason ?? '');
+  // Which currently-open position this roll went into - only meaningful
+  // when close_reason is exactly 'rolled'. Feeds carried_pnl on the
+  // TARGET position (services/position_log_service.compute_carried_pnl),
+  // which is what lets that position's take-profit target account for
+  // whatever's realized here.
+  const [rolledIntoId, setRolledIntoId] = useState(row.rolled_into_id != null ? String(row.rolled_into_id) : '');
   const [positionType, setPositionType] = useState(row.position_type || 'naked_put');
   const [shortStrike, setShortStrike] = useState(row.short_strike ?? '');
   const [longStrike, setLongStrike] = useState(row.long_strike ?? '');
@@ -159,6 +165,9 @@ function RowActions({ row, onUpdated, isClosed }) {
           payload.short_close_price = shortClosePrice !== '' ? Number(shortClosePrice) : undefined;
           payload.long_close_price = longClosePrice !== '' ? Number(longClosePrice) : undefined;
         }
+        if (closeReason === 'rolled' && rolledIntoId !== '') {
+          payload.rolled_into_id = Number(rolledIntoId);
+        }
       }
       await updatePositionLogEntry(row.id, payload);
       setMode(null);
@@ -189,6 +198,7 @@ function RowActions({ row, onUpdated, isClosed }) {
               long_close_price: longClosePrice !== '' ? Number(longClosePrice) : undefined,
             }
           : {}),
+        ...(closeReason === 'rolled' && rolledIntoId !== '' ? { rolled_into_id: Number(rolledIntoId) } : {}),
       });
       setMode(null);
       onUpdated();
@@ -332,6 +342,19 @@ function RowActions({ row, onUpdated, isClosed }) {
                 {CLOSE_REASON_SUGGESTIONS.map((s) => <option key={s} value={s} />)}
               </datalist>
             </label>
+            {closeReason === 'rolled' && (
+              <label>
+                Rolled Into
+                <select value={rolledIntoId} onChange={(e) => setRolledIntoId(e.target.value)} className={styles.formInput}>
+                  <option value="">Select the open position…</option>
+                  {(openPositions || []).filter((p) => p.id !== row.id).map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.ticker} {p.position_type === 'vertical_spread' ? `${p.short_strike}/${p.long_strike}` : p.strike} exp {p.expiration}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
           </>
         )}
         <button className={styles.saveButton} onClick={handleSaveEdit} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
@@ -374,6 +397,19 @@ function RowActions({ row, onUpdated, isClosed }) {
           {CLOSE_REASON_SUGGESTIONS.map((s) => <option key={s} value={s} />)}
         </datalist>
       </label>
+      {closeReason === 'rolled' && (
+        <label>
+          Rolled Into
+          <select value={rolledIntoId} onChange={(e) => setRolledIntoId(e.target.value)} className={styles.formInput}>
+            <option value="">Select the open position…</option>
+            {(openPositions || []).filter((p) => p.id !== row.id).map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.ticker} {p.position_type === 'vertical_spread' ? `${p.short_strike}/${p.long_strike}` : p.strike} exp {p.expiration}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <button className={styles.actionButtonClose} onClick={handleClose} disabled={saving}>{saving ? 'Closing…' : 'Confirm Close'}</button>
       <button className={styles.cancelButton} onClick={() => setMode(null)}>Cancel</button>
       {error && <div className={styles.formError}>{error}</div>}
@@ -570,7 +606,10 @@ export default function PositionLogPage() {
                         </td>
                       )}
                       {!hidden.has('close_reason') && (
-                        <td className={row.close_reason ? '' : tableStyles.muted}>{row.close_reason || 'not recorded'}</td>
+                        <td className={row.close_reason ? '' : tableStyles.muted}>
+                          {row.close_reason || 'not recorded'}
+                          {row.rolled_into_id != null && <span className={tableStyles.muted}> (→ #{row.rolled_into_id})</span>}
+                        </td>
                       )}
                     </>
                   )}
@@ -578,7 +617,12 @@ export default function PositionLogPage() {
                     <td className="num">{daysHeld(row.entry_date)}</td>
                   )}
                   <td>
-                    <RowActions row={row} onUpdated={() => fetchData(statusView)} isClosed={statusView === 'closed'} />
+                    <RowActions
+                      row={row}
+                      onUpdated={() => fetchData(statusView)}
+                      isClosed={statusView === 'closed'}
+                      openPositions={statusView === 'open' ? positions : []}
+                    />
                   </td>
                 </tr>
               ))}

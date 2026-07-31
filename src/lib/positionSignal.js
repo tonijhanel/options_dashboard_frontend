@@ -14,6 +14,11 @@
  * it executes, not what it means.
  */
 
+// entryPrice: pass an EFFECTIVE entry price for a rolled position -
+// PositionsPage.js's own positionsWithStatus already does this
+// (entry_price + carried_pnl / (contracts * 100), see its comment) before
+// calling this function - kept out of this function itself so it stays
+// the same pure calculation position_signal.py's compute_status is.
 export function computeStatus(entryPrice, currentMid, spot, strike, dte, profitTargetPct = 80) {
   const ptScalar = profitTargetPct / 100;
   const dynamicTargetBuyback = entryPrice * (1 - ptScalar);

@@ -170,12 +170,28 @@ export default function PositionsPage() {
 
   const positionsWithStatus = useMemo(() => {
     if (!data?.positions) return [];
-    return data.positions.map((p) => ({
-      ...p,
-      status: computeStatus(p.entry_price, p.mid, p.spot, p.strike, p.dte, profitTarget),
-      recommendation: computeRollRecommendation(p),
-      liquidity: liquidityByPosition[p.position_log_id],
-    }));
+    return data.positions.map((p) => {
+      // Effective entry price for take-profit purposes only - if this
+      // position was rolled (carried_pnl set), the true cost basis
+      // includes whatever was realized on the leg(s) it came from, not
+      // just this leg's own entry_price. carried_pnl is a dollar total
+      // (negative = loss) from services/position_log_service.compute_carried_pnl;
+      // dividing by contracts*100 puts it on the same per-share basis as
+      // entry_price before combining. A position with no roll history
+      // (carried_pnl null) is unaffected - this reduces to entry_price
+      // exactly, same as before this existed.
+      const contracts = p.contracts || 1;
+      const effectiveEntryPrice = p.carried_pnl != null
+        ? p.entry_price + p.carried_pnl / (contracts * 100)
+        : p.entry_price;
+      return {
+        ...p,
+        effectiveEntryPrice,
+        status: computeStatus(effectiveEntryPrice, p.mid, p.spot, p.strike, p.dte, profitTarget),
+        recommendation: computeRollRecommendation(p),
+        liquidity: liquidityByPosition[p.position_log_id],
+      };
+    });
   }, [data, profitTarget, liquidityByPosition]);
 
   // Sensible first-time defaults: hide secondary technical detail
@@ -363,6 +379,19 @@ export default function PositionsPage() {
                                 nextEarningsDate={p.next_earnings_date}
                                 nextExDividendDate={p.next_ex_dividend_date}
                               />
+                              {p.carried_pnl != null && (
+                                <span
+                                  className={p.carried_pnl < 0 ? tableStyles.negative : tableStyles.positive}
+                                  title={
+                                    `Rolled - carried ${p.carried_pnl < 0 ? 'loss' : 'gain'} of `
+                                    + `${formatCurrency(Math.abs(p.carried_pnl))} from `
+                                    + p.rolled_from.map((r) => `${r.ticker} $${r.strike} exp ${r.expiration}`).join(', ')
+                                    + ` - take-profit target adjusted accordingly.`
+                                  }
+                                >
+                                  {' ↻'}
+                                </span>
+                              )}
                             </>
                           ) : (
                             col.render(p)
