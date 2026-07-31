@@ -127,11 +127,11 @@ const COLUMNS = [
     } },
   { key: 'roc_tier', label: 'ROC Tier', sortable: true,
     getSortValue: (p) => {
-      const tier = computeROCTier(computeAnnualizedROC(computeROC(p.entry_price, p.strike), p.dte));
+      const tier = computeROCTier(computeAnnualizedROC(computeROC(p.entry_price, p.strike), p.dte), p.group);
       return { skip: 0, sweet_spot: 1, alpha: 2 }[tier] ?? 3;
     },
     render: (p) => {
-      const tier = computeROCTier(computeAnnualizedROC(computeROC(p.entry_price, p.strike), p.dte));
+      const tier = computeROCTier(computeAnnualizedROC(computeROC(p.entry_price, p.strike), p.dte), p.group);
       return <ROCTierBadge tier={tier} />;
     } },
   { key: 'liquidity', label: 'Liquidity', sortable: true,

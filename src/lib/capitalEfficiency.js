@@ -21,15 +21,35 @@ export function computeAnnualizedROC(roc, dte) {
 }
 
 /**
- * Three-tier ROC classification, ported exactly from the calculator's
- * own status gate:
- *   < 12%        -> 'skip'       (premium too low relative to capital risk)
- *   12% - 25%    -> 'sweet_spot' (optimal for macro baskets/ETFs)
- *   > 25%        -> 'alpha'      (high yield spike - make sure you want to own it)
+ * Three-tier ROC classification - thresholds depend on the ticker's
+ * registry group, since a "good" annualized ROC on a single stock and on
+ * an ETF/macro basket are not the same number:
+ *
+ *   Group A (single stocks / high beta):
+ *     < 12%        -> 'skip'       (premium too low relative to capital risk)
+ *     12% - 25%    -> 'sweet_spot'
+ *     > 25%        -> 'alpha'      (high yield spike - make sure you want to own it)
+ *
+ *   Group B (ETFs / macro baskets):
+ *     < 8.5%        -> 'skip'
+ *     8.5% - 15%    -> 'sweet_spot'
+ *     > 15%         -> 'alpha'     (rare for an ETF - signals a massive, highly
+ *                                   profitable panic, not routine premium)
+ *
+ * group: 'A' | 'B' | null/undefined - anything other than exactly 'B'
+ * (including missing/unset) falls back to Group A's thresholds, the more
+ * conservative (higher-bar) assumption for a ticker this app doesn't have
+ * classified.
  */
-export function computeROCTier(annualizedRoc) {
+const ROC_TIER_THRESHOLDS = {
+  A: { skip: 12.0, alpha: 25.0 },
+  B: { skip: 8.5, alpha: 15.0 },
+};
+
+export function computeROCTier(annualizedRoc, group) {
   if (annualizedRoc === null || annualizedRoc === undefined) return null;
-  if (annualizedRoc < 12.0) return 'skip';
-  if (annualizedRoc <= 25.0) return 'sweet_spot';
+  const { skip, alpha } = group === 'B' ? ROC_TIER_THRESHOLDS.B : ROC_TIER_THRESHOLDS.A;
+  if (annualizedRoc < skip) return 'skip';
+  if (annualizedRoc <= alpha) return 'sweet_spot';
   return 'alpha';
 }
