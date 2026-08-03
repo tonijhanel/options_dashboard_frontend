@@ -40,6 +40,8 @@ const COLUMNS = [
     render: (c) => c.mid?.toFixed(2) },
   { key: 'iv_pct', label: 'IV', sortable: true, getSortValue: (c) => c.iv_pct,
     render: (c) => (c.iv_pct !== null && c.iv_pct !== undefined ? `${c.iv_pct.toFixed(1)}%` : '—') },
+  { key: 'iv_rv_ratio', label: 'IV/RV', sortable: true, getSortValue: (c) => c.iv_rv_ratio,
+    render: (c) => (c.iv_rv_ratio !== null && c.iv_rv_ratio !== undefined ? c.iv_rv_ratio.toFixed(2) : '—') },
   { key: 'open_interest', label: 'OI', sortable: true, getSortValue: (c) => c.open_interest,
     render: (c) => c.open_interest ?? '—' },
   { key: 'volume', label: 'Volume', sortable: true, getSortValue: (c) => c.volume,
