@@ -8,6 +8,7 @@ import NewsSentimentPage from './pages/NewsSentimentPage';
 import PositionLogPage from './pages/PositionLogPage';
 import PnlHistoryPage from './pages/PnlHistoryPage';
 import TickerRegistryPage from './pages/TickerRegistryPage';
+import TradeSignalsPage from './pages/TradeSignalsPage';
 import HedgePage from './pages/HedgePage';
 import ActiveSpreadsPage from './pages/ActiveSpreadsPage';
 import BwbTradesPage from './pages/BwbTradesPage';
@@ -27,6 +28,7 @@ export default function App() {
           <Route path="/position-log" element={<PositionLogPage />} />
           <Route path="/pnl-history" element={<PnlHistoryPage />} />
           <Route path="/ticker-registry" element={<TickerRegistryPage />} />
+          <Route path="/trade-signals" element={<TradeSignalsPage />} />
           <Route path="/hedge" element={<HedgePage />} />
           <Route path="/active-spreads" element={<ActiveSpreadsPage />} />
           <Route path="/bwb-trades" element={<BwbTradesPage />} />

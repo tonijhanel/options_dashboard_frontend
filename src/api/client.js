@@ -97,6 +97,18 @@ export function getSnapTradeConnectionStatus() {
   return request('/snaptrade-connection-status');
 }
 
+/**
+ * Stage 1 Trade Signal Engine (docs/tradesignals.md) - chain-free FAVORABLE/
+ * NEUTRAL/AVOID flag per ticker/strategy_type. Omit `pairs` (the normal case)
+ * to run every active registry ticker against every strategy type.
+ */
+export function getTradeSignals(pairs) {
+  return request('/trade-signals', {
+    method: 'POST',
+    body: JSON.stringify(pairs && pairs.length ? { pairs } : {}),
+  });
+}
+
 /** Data anomalies detected on ingest (docs/quantfeatures.md Feature 1) - optionally filtered. */
 export function getDataAnomalies({ source, severity, since } = {}) {
   const params = new URLSearchParams();

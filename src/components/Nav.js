@@ -22,6 +22,7 @@ const POSITION_MANAGEMENT_ITEMS = [
 
 const POSITION_SCANNER_ITEMS = [
   { to: '/csp-scan', label: 'Single Position Scan' },
+  { to: '/trade-signals', label: 'Trade Signals' },
   { to: '/ticker-registry', label: 'Ticker Registry' },
 ];
 

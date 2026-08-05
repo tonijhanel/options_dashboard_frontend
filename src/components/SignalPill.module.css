@@ -1,0 +1,76 @@
+.wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-3);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  border: none;
+  cursor: pointer;
+}
+
+.positive {
+  color: var(--positive);
+  background: rgba(22, 163, 74, 0.12);
+}
+
+.warning {
+  color: var(--accent);
+  background: rgba(37, 99, 235, 0.12);
+}
+
+.negative {
+  color: var(--negative);
+  background: rgba(220, 38, 38, 0.12);
+}
+
+.unknown {
+  color: var(--text-tertiary);
+  background: transparent;
+  cursor: default;
+}
+
+.panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 40;
+  width: 280px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.16);
+  padding: var(--space-3);
+  white-space: normal;
+}
+
+.reason {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0 0 var(--space-2);
+}
+
+.indicators {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: var(--space-1) var(--space-2);
+  font-size: 11px;
+  margin: 0;
+}
+
+.indicators dt {
+  color: var(--text-tertiary);
+}
+
+.indicators dd {
+  margin: 0;
+  text-align: right;
+  font-weight: 600;
+}
