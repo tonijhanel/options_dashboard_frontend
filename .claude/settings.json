@@ -4,7 +4,21 @@
       "Read(//c/options_dashboard/backend/clients/**)",
       "Bash(/c/options_dashboard/.venv/Scripts/python.exe -c ' *)",
       "Bash(/c/options_dashboard/.venv/Scripts/python.exe -m pip show snaptrade-python-sdk)",
-      "Bash(/c/options_dashboard/.venv/Scripts/python.exe -c \"import snaptrade_client; print\\(snaptrade_client.__file__\\)\")"
+      "Bash(/c/options_dashboard/.venv/Scripts/python.exe -c \"import snaptrade_client; print\\(snaptrade_client.__file__\\)\")",
+      "Bash(python -m pytest backend/tests/test_credit_spread_scanner.py -v)",
+      "Bash(python -m py_compile backend/services/bwb_earnings_scanner.py)",
+      "Bash(python -c \"import sys; sys.path.insert\\(0,'backend'\\); import services.bwb_earnings_scanner\")",
+      "Bash(python -m pytest backend/tests/test_bwb_earnings_scanner.py -v)",
+      "Bash(python -m py_compile backend/tests/test_bwb_earnings_scanner.py)",
+      "Bash(python -m py_compile backend/services/spread_screener.py)",
+      "Bash(python -c \"import sys; sys.path.insert\\(0,'backend'\\); import services.spread_screener\")",
+      "Bash(python -m py_compile backend/tests/test_spread_screener.py)",
+      "Bash(python -m pytest backend/tests/test_spread_screener.py -v)",
+      "Bash(python -m py_compile backend/api/app.py backend/services/spread_screener.py backend/services/credit_spread_scanner.py backend/services/bwb_earnings_scanner.py backend/indicators/liquidity_gates.py backend/clients/db_client.py)",
+      "Bash(python -c ' *)",
+      "Bash(pip show *)",
+      "Bash(python -c \"import snaptrade_client\")",
+      "Bash(python \"C:\\\\Users\\\\tonij\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--options-dashboard-frontend-frontend\\\\b26be7db-ec96-4e4e-a149-c274d86c037a\\\\scratchpad\\\\live_verify_ror_fix.py\")"
     ],
     "additionalDirectories": [
       "C:\\options_dashboard\\backend"
