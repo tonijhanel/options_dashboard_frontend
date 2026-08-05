@@ -13,17 +13,47 @@
 
 .controlsRow {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: var(--space-3);
   margin-bottom: var(--space-3);
 }
 
-.checkboxLabel {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
+.searchInput {
+  padding: var(--space-2) var(--space-3);
   font-size: 13px;
+  width: 180px;
+}
+
+.strategySelect {
+  padding: var(--space-2) var(--space-3);
+  font-size: 13px;
+}
+
+.filterRow {
+  display: flex;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.filter, .filterActive {
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
   color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.filterActive {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+
+.filter:hover {
+  border-color: var(--accent-dim);
+  color: var(--text-primary);
 }
 
 .errorsNote {
