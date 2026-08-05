@@ -92,6 +92,11 @@ export function getSchwabTokenHealth() {
   return request('/schwab-token-health');
 }
 
+/** Proactive check for whether any linked SnapTrade brokerage connection has gone disabled. */
+export function getSnapTradeConnectionStatus() {
+  return request('/snaptrade-connection-status');
+}
+
 /** Data anomalies detected on ingest (docs/quantfeatures.md Feature 1) - optionally filtered. */
 export function getDataAnomalies({ source, severity, since } = {}) {
   const params = new URLSearchParams();
