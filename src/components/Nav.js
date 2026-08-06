@@ -23,13 +23,20 @@ const POSITION_MANAGEMENT_ITEMS = [
 const POSITION_SCANNER_ITEMS = [
   { to: '/csp-scan', label: 'Single Position Scan' },
   { to: '/trade-signals', label: 'Trade Signals' },
-  { to: '/bwb-eval', label: 'Evaluate BWB Trades' },
   { to: '/ticker-registry', label: 'Ticker Registry' },
 ];
 
 const ACTIVE_SPREADS_ITEMS = [
   { to: '/active-spreads', label: 'Vertical Spreads' },
   { to: '/bwb-trades', label: 'BWB Spreads' },
+];
+
+// Standalone, chain-free pre-trade calculators (evaluate-only, no
+// persistence) - a distinct category from the live scanners/trackers
+// above, likely to grow (docs/bwb_eval.md, docs/credit_eval.md).
+const TOOLS_ITEMS = [
+  { to: '/bwb-eval', label: 'Evaluate BWB Trades' },
+  { to: '/credit-eval', label: 'Evaluate Credit Spreads' },
 ];
 
 export default function Nav() {
@@ -46,6 +53,7 @@ export default function Nav() {
         <NavDropdown label="Active Spreads" items={ACTIVE_SPREADS_ITEMS} />
         <NavDropdown label="Position Management" items={POSITION_MANAGEMENT_ITEMS} />
         <NavDropdown label="Position Scanner" items={POSITION_SCANNER_ITEMS} />
+        <NavDropdown label="Tools" items={TOOLS_ITEMS} />
         <NavLink
           to="/news-sentiment"
           className={({ isActive }) => (isActive ? `${styles.link} ${styles.active}` : styles.link)}

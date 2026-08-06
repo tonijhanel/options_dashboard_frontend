@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { evaluateBwb } from '../lib/bwbEval';
 import { formatCurrency } from '../components/SummaryBar';
 import BwbEvalChart from '../components/BwbEvalChart';
-import BwbVerdictBadge from '../components/BwbVerdictBadge';
+import VerdictBadge from '../components/VerdictBadge';
 import { EmptyView } from '../components/StateViews';
 import styles from './BwbEvalPage.module.css';
 
@@ -94,7 +94,7 @@ export default function BwbEvalPage() {
       {result && result.valid && (
         <>
           <div className={styles.reportCard}>
-            <BwbVerdictBadge verdict={result.verdict} />
+            <VerdictBadge verdict={result.verdict} />
             <div className={styles.reportGrid}>
               <div>
                 <span className={styles.reportLabel}>Max Profit</span>

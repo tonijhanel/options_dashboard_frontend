@@ -1,0 +1,126 @@
+.title {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 var(--space-3);
+}
+
+.intro {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0 0 var(--space-4);
+  max-width: 760px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: var(--space-4);
+}
+
+.formRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-4);
+}
+
+.legLabel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-weight: 600;
+}
+
+.formInput {
+  padding: var(--space-2) var(--space-3);
+  font-size: 13px;
+  width: 160px;
+}
+
+.formInputSmall {
+  padding: var(--space-2) var(--space-3);
+  font-size: 13px;
+  width: 110px;
+}
+
+.errorsNote {
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 13px;
+  color: var(--negative);
+}
+
+.errorsNote ul {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-5);
+}
+
+.reportCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: var(--space-4);
+}
+
+.reportGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-4);
+}
+
+.reportGrid > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.reportLabel {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+}
+
+.reportValue {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.reportValuePositive {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--positive);
+}
+
+.reportValueNegative {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--negative);
+}
+
+.reportValueAccent {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.reportSub {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
