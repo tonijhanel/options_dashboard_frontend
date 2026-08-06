@@ -23,6 +23,7 @@ const POSITION_MANAGEMENT_ITEMS = [
 const POSITION_SCANNER_ITEMS = [
   { to: '/csp-scan', label: 'Single Position Scan' },
   { to: '/trade-signals', label: 'Trade Signals' },
+  { to: '/bwb-eval', label: 'Evaluate BWB Trades' },
   { to: '/ticker-registry', label: 'Ticker Registry' },
 ];
 
