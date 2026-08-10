@@ -2,12 +2,14 @@ import { useMemo, useState } from 'react';
 import { getActiveSpreads, updatePositionLogEntry, getIgnoredPositions, ignorePosition, unignorePosition, getLiquidityStatus } from '../api/client';
 import { useApiData } from '../lib/useApiData';
 import { useSortableData } from '../lib/useSortableData';
+import { pctOfMaxProfitCaptured } from '../lib/profitCaptured';
 import { LoadingView, ErrorView, EmptyView } from '../components/StateViews';
 import { formatCurrency } from '../components/SummaryBar';
 import PageHeader from '../components/PageHeader';
 import SortableHeader from '../components/SortableHeader';
 import ColumnPicker, { useColumnVisibility } from '../components/ColumnPicker';
 import LiquidityBadge from '../components/LiquidityBadge';
+import ProfitTargetSlider from '../components/ProfitTargetSlider';
 import tableStyles from '../components/Table.module.css';
 import styles from './ActiveSpreadsPage.module.css';
 
@@ -152,6 +154,12 @@ const COLUMNS = [
     render: (r) => (r.roc != null ? `${r.roc.toFixed(1)}%` : '—') },
   { key: 'annualized_roc', label: 'Annualized ROC', sortable: true, getSortValue: (r) => r.annualized_roc,
     render: (r) => (r.annualized_roc != null ? `${r.annualized_roc.toFixed(1)}%` : '—') },
+  { key: 'pct_captured', label: 'Profit Captured', sortable: true, getSortValue: (r) => r.pctCaptured,
+    render: (r) => (
+      r.pctCaptured != null
+        ? <span className={r.hitProfitTarget ? tableStyles.positive : ''}>{r.pctCaptured.toFixed(0)}%</span>
+        : '—'
+    ) },
   { key: 'liquidity', label: 'Liquidity', sortable: true,
     getSortValue: (r) => LIQUIDITY_RANK[r.liquidity?.severity] ?? 3,
     render: (r) => <LiquidityBadge snapshot={r.liquidity} /> },
@@ -163,6 +171,7 @@ export default function ActiveSpreadsPage() {
   const { data, error, loading, refetch } = useApiData(getActiveSpreads, 'activeSpreads');
   const { data: ignoredPositions, refetch: refetchIgnored } = useApiData(getIgnoredPositions, 'ignoredPositions');
   const { data: liquidityStatus } = useApiData(getLiquidityStatus, 'liquidityStatus');
+  const [profitTarget, setProfitTarget] = useState(80);
 
   // Keyed by position_id (docs/liquiddecay.md) - every position_log row's
   // own id, regardless of position_type (naked_put, vertical_spread,
@@ -178,8 +187,20 @@ export default function ActiveSpreadsPage() {
   }, [liquidityStatus]);
 
   const spreads = useMemo(
-    () => (data?.spreads || []).map((r) => ({ ...r, liquidity: liquidityByPosition[r.id] })),
-    [data, liquidityByPosition]
+    () => (data?.spreads || []).map((r) => {
+      // A credit vertical has no separate max_profit field - the entry
+      // credit itself IS the max profit, realized when current_net_value
+      // decays to 0 (see lib/profitCaptured.js).
+      const maxProfitDollars = r.net_entry != null ? r.net_entry * 100 * r.contracts : null;
+      const pctCaptured = pctOfMaxProfitCaptured(r.live_pnl, maxProfitDollars);
+      return {
+        ...r,
+        liquidity: liquidityByPosition[r.id],
+        pctCaptured,
+        hitProfitTarget: pctCaptured != null && pctCaptured >= profitTarget,
+      };
+    }),
+    [data, liquidityByPosition, profitTarget]
   );
   const { hidden, toggle, visibleColumns } = useColumnVisibility(COLUMNS, 'activeSpreadsTable');
   const { sorted, sortKey, direction, requestSort } = useSortableData(
@@ -207,6 +228,7 @@ export default function ActiveSpreadsPage() {
       ) : (
         <>
           <div className={styles.tableToolbar}>
+            <ProfitTargetSlider value={profitTarget} onChange={setProfitTarget} />
             <ColumnPicker columns={COLUMNS} hidden={hidden} onToggle={toggle} />
           </div>
 
