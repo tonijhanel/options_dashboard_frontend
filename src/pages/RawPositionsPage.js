@@ -28,6 +28,13 @@ const COLUMNS = [
     render: (r) => r.account_name || r.account_number || '—' },
   { key: 'ticker', label: 'Ticker', alwaysVisible: true,
     render: (r) => <span className={styles.ticker}>{r.ticker}</span> },
+  { key: 'spot', label: 'Spot',
+    // SnapTrade's own last-known market price for the position itself -
+    // for a stock/ETF row that already IS the spot price, no extra fetch
+    // needed. Not shown for options (that row's own "price" is the
+    // contract's premium, not the underlying's spot - a genuinely
+    // different number this doesn't attempt to supply).
+    render: (r) => (r.instrument_kind !== 'option' && r.price != null ? Number(r.price).toFixed(2) : '—') },
   { key: 'type', label: 'Type',
     render: (r) => typeLabel(r) },
   { key: 'strike', label: 'Strike',
