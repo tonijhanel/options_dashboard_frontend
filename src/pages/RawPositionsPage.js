@@ -4,6 +4,7 @@ import { useApiData } from '../lib/useApiData';
 import { LoadingView, ErrorView, EmptyView } from '../components/StateViews';
 import PageHeader from '../components/PageHeader';
 import ColumnPicker, { useColumnVisibility } from '../components/ColumnPicker';
+import { formatCurrency } from '../components/SummaryBar';
 import tableStyles from '../components/Table.module.css';
 import styles from './RawPositionsPage.module.css';
 
@@ -21,6 +22,18 @@ function typeLabel(row) {
   return '—';
 }
 
+// units * (price - cost_basis) * multiplier. units is already signed by
+// SnapTrade (positive = long, negative = short), so this falls out
+// correctly for both without any extra sign handling. Multiplier is 100
+// for options (1 contract = 100 underlying shares) since SnapTrade's own
+// price/cost_basis for an option row are both per-share premiums, not
+// pre-multiplied contract totals - 1 for everything else (stock/ETF/ADR).
+function unrealizedPL(row) {
+  if (row.units == null || row.price == null || row.cost_basis == null) return null;
+  const multiplier = row.instrument_kind === 'option' ? 100 : 1;
+  return row.units * (row.price - row.cost_basis) * multiplier;
+}
+
 const COLUMNS = [
   { key: 'institution_name', label: 'Broker', alwaysVisible: true,
     render: (r) => r.institution_name || '—' },
@@ -29,12 +42,12 @@ const COLUMNS = [
   { key: 'ticker', label: 'Ticker', alwaysVisible: true,
     render: (r) => <span className={styles.ticker}>{r.ticker}</span> },
   { key: 'spot', label: 'Spot',
-    // SnapTrade's own last-known market price for the position itself -
-    // for a stock/ETF row that already IS the spot price, no extra fetch
-    // needed. Not shown for options (that row's own "price" is the
-    // contract's premium, not the underlying's spot - a genuinely
-    // different number this doesn't attempt to supply).
-    render: (r) => (r.instrument_kind !== 'option' && r.price != null ? Number(r.price).toFixed(2) : '—') },
+    // The underlying's live price - same value on a stock row and every
+    // option leg sharing that ticker. Comes from a Schwab quote
+    // (raw_positions_service.py), not SnapTrade - null if that quote
+    // call wasn't available for any reason, never blocks the rest of
+    // the row from showing.
+    render: (r) => (r.spot_price != null ? Number(r.spot_price).toFixed(2) : '—') },
   { key: 'type', label: 'Type',
     render: (r) => typeLabel(r) },
   { key: 'strike', label: 'Strike',
@@ -47,6 +60,13 @@ const COLUMNS = [
     render: (r) => (r.price != null ? Number(r.price).toFixed(2) : '—') },
   { key: 'cost_basis', label: 'Cost Basis',
     render: (r) => (r.cost_basis != null ? Number(r.cost_basis).toFixed(2) : '—') },
+  { key: 'unrealized_pl', label: 'Unrealized P/L',
+    render: (r) => {
+      const pl = unrealizedPL(r);
+      return pl != null
+        ? <span className={pl >= 0 ? tableStyles.positive : tableStyles.negative}>{formatCurrency(pl)}</span>
+        : '—';
+    } },
   { key: 'order_group_id', label: 'Group',
     render: (r) => (r.groupLabel ? <span className={styles.groupTag}>{r.groupLabel}</span> : '—') },
 ];
