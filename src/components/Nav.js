@@ -18,6 +18,7 @@ const POSITION_MANAGEMENT_ITEMS = [
   { to: '/position-log', label: 'Position Log' },
   { to: '/pnl-history', label: 'P&L History' },
   { to: '/hedge', label: 'Hedge' },
+  { to: '/raw-positions', label: 'All Positions' },
 ];
 
 const POSITION_SCANNER_ITEMS = [

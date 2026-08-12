@@ -47,6 +47,11 @@ export function getPositions() {
   return request('/positions');
 }
 
+/** Every position across every connected brokerage account, unfiltered - not scoped to naked CSPs like getPositions(). */
+export function getRawPositions() {
+  return request('/raw-positions');
+}
+
 export function getTspPortfolio() {
   return request('/tsp-portfolio');
 }
