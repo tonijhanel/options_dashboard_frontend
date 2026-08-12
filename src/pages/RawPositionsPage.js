@@ -41,16 +41,31 @@ const COLUMNS = [
     render: (r) => (r.price != null ? Number(r.price).toFixed(2) : '—') },
   { key: 'cost_basis', label: 'Cost Basis', sortable: true, getSortValue: (r) => r.cost_basis,
     render: (r) => (r.cost_basis != null ? Number(r.cost_basis).toFixed(2) : '—') },
+  { key: 'order_group_id', label: 'Group', sortable: true, getSortValue: (r) => r.order_group_id || '',
+    render: (r) => (r.groupLabel ? <span className={styles.groupTag}>{r.groupLabel}</span> : '—') },
 ];
 
-const NON_NUMERIC_COLUMNS = ['institution_name', 'account_name', 'ticker', 'type', 'expiration'];
+const NON_NUMERIC_COLUMNS = ['institution_name', 'account_name', 'ticker', 'type', 'expiration', 'order_group_id'];
 
 export default function RawPositionsPage() {
   const { data, error, loading, refetch } = useApiData(getRawPositions, 'rawPositions');
   const [brokerFilter, setBrokerFilter] = useState('ALL');
   const { hidden, toggle, visibleColumns } = useColumnVisibility(COLUMNS, 'rawPositionsTable', []);
 
-  const positions = useMemo(() => data?.positions || [], [data]);
+  // Legs placed together as one multi-leg order share an order_group_id
+  // (see raw_positions_service.py's docstring - inferred from SnapTrade's
+  // own brokerage_order_id naming convention, verified live). Relabeled
+  // here as short G1/G2/... tags for display - computed off the FULL
+  // unfiltered list so a group's label stays stable regardless of the
+  // broker filter, sorted numerically so clicking the Group column
+  // actually clusters legs together adjacently.
+  const positions = useMemo(() => {
+    const raw = data?.positions || [];
+    const ids = Array.from(new Set(raw.map((p) => p.order_group_id).filter(Boolean))).sort();
+    const labelById = {};
+    ids.forEach((id, i) => { labelById[id] = `G${i + 1}`; });
+    return raw.map((p) => ({ ...p, groupLabel: p.order_group_id ? labelById[p.order_group_id] : null }));
+  }, [data]);
 
   // Populated from whatever institution_name values actually come back,
   // not hardcoded - SnapTrade's exact per-broker strings (Schwab/E*Trade/
@@ -77,6 +92,8 @@ export default function RawPositionsPage() {
       <p className={styles.intro}>
         Everything currently held across every connected brokerage account, straight from SnapTrade - no
         strategy classification, no filtering. Stocks, ETFs, and options (puts and calls, long and short).
+        Legs placed together as one multi-leg order share a Group tag (click the Group column to cluster
+        them) - inferred from order history, so it only covers positions opened within the last 180 days.
       </p>
 
       <div className={styles.controlsRow}>
