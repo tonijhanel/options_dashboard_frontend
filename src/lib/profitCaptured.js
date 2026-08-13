@@ -24,3 +24,19 @@ export function pctOfMaxProfitCaptured(livePnl, maxProfitDollars) {
   if (livePnl == null || maxProfitDollars == null || maxProfitDollars <= 0) return null;
   return (livePnl / maxProfitDollars) * 100;
 }
+
+/**
+ * StatusBadge-shaped {label, tone} for the take-profit slider, mirroring
+ * PositionsPage's computeStatus but collapsed to the two tones that apply
+ * to a defined-risk spread (no roll/assignment tiers): hit the target, or
+ * still holding. Reuses StatusBadge's existing 'take-profit'/'roll-hold'
+ * CSS tones rather than inventing new ones. Returns null (no badge) when
+ * pctCaptured itself is null (e.g. a debit spread with no real max profit).
+ */
+export function profitCaptureStatus(pctCaptured, profitTarget) {
+  if (pctCaptured == null) return null;
+  if (pctCaptured >= profitTarget) {
+    return { label: `Take Profit (${Math.round(profitTarget)}%)`, tone: 'take-profit' };
+  }
+  return { label: 'Hold', tone: 'roll-hold' };
+}

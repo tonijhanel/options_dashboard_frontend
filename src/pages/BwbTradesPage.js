@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { getActiveBwbs, createBwbPosition, closeBwbPosition, deleteBwbPosition, getLiquidityStatus } from '../api/client';
 import { useApiData } from '../lib/useApiData';
 import { useSortableData } from '../lib/useSortableData';
-import { pctOfMaxProfitCaptured } from '../lib/profitCaptured';
+import { pctOfMaxProfitCaptured, profitCaptureStatus } from '../lib/profitCaptured';
 import { evaluateBwb } from '../lib/bwbEval';
 import { LoadingView, ErrorView, EmptyView } from '../components/StateViews';
 import { formatCurrency } from '../components/SummaryBar';
@@ -10,6 +10,7 @@ import PageHeader from '../components/PageHeader';
 import SortableHeader from '../components/SortableHeader';
 import ColumnPicker, { useColumnVisibility } from '../components/ColumnPicker';
 import LiquidityBadge from '../components/LiquidityBadge';
+import StatusBadge from '../components/StatusBadge';
 import ProfitTargetSlider from '../components/ProfitTargetSlider';
 import BwbEvalChart from '../components/BwbEvalChart';
 import tableStyles from '../components/Table.module.css';
@@ -73,6 +74,7 @@ function BwbChartPanel({ row }) {
 }
 
 const LIQUIDITY_RANK = { critical: 0, warning: 1, ok: 2 };
+const STATUS_RANK = { 'take-profit': 0, 'roll-hold': 1 };
 
 // Manual entry only (no SnapTrade auto-detection - docs/bwb_trades.md).
 // Puts only: long wing / short middle x2 / long wing, same expiration.
@@ -298,12 +300,15 @@ const COLUMNS = [
         ? <span className={r.hitProfitTarget ? tableStyles.positive : ''}>{r.pctCaptured.toFixed(0)}%</span>
         : '—'
     ) },
+  { key: 'status', label: 'Status', sortable: true,
+    getSortValue: (r) => STATUS_RANK[r.status?.tone] ?? 2,
+    render: (r) => (r.status ? <StatusBadge status={r.status} /> : '—') },
   { key: 'liquidity', label: 'Liquidity', sortable: true,
     getSortValue: (r) => LIQUIDITY_RANK[r.liquidity?.severity] ?? 3,
     render: (r) => <LiquidityBadge snapshot={r.liquidity} /> },
 ];
 
-const NON_NUMERIC_COLUMNS = ['ticker', 'expiration', 'breakevens', 'liquidity'];
+const NON_NUMERIC_COLUMNS = ['ticker', 'expiration', 'breakevens', 'status', 'liquidity'];
 
 export default function BwbTradesPage() {
   const { data, error, loading, refetch } = useApiData(getActiveBwbs, 'activeBwbs');
@@ -330,6 +335,7 @@ export default function BwbTradesPage() {
         liquidity: liquidityByPosition[r.id],
         pctCaptured,
         hitProfitTarget: pctCaptured != null && pctCaptured >= profitTarget,
+        status: profitCaptureStatus(pctCaptured, profitTarget),
       };
     }),
     [data, liquidityByPosition, profitTarget]
