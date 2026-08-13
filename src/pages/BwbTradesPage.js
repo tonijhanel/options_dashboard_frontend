@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { getActiveBwbs, createBwbPosition, closeBwbPosition, deleteBwbPosition, getLiquidityStatus } from '../api/client';
 import { useApiData } from '../lib/useApiData';
 import { useSortableData } from '../lib/useSortableData';
 import { pctOfMaxProfitCaptured } from '../lib/profitCaptured';
+import { evaluateBwb } from '../lib/bwbEval';
 import { LoadingView, ErrorView, EmptyView } from '../components/StateViews';
 import { formatCurrency } from '../components/SummaryBar';
 import PageHeader from '../components/PageHeader';
@@ -10,8 +11,66 @@ import SortableHeader from '../components/SortableHeader';
 import ColumnPicker, { useColumnVisibility } from '../components/ColumnPicker';
 import LiquidityBadge from '../components/LiquidityBadge';
 import ProfitTargetSlider from '../components/ProfitTargetSlider';
+import BwbEvalChart from '../components/BwbEvalChart';
 import tableStyles from '../components/Table.module.css';
 import styles from './BwbTradesPage.module.css';
+
+// Reuses the standalone BWB Evaluator's own math/chart (lib/bwbEval.js,
+// BwbEvalChart.js) fed from this ALREADY-OPEN position's real strikes/
+// credit/contracts instead of a hand-typed hypothetical - at-expiration
+// payoff shape only (docs/tradesignalsv2.md-style "Tier 1" scope, 2026-08 -
+// no Black-Scholes "theoretical today" line, since that needs live IV per
+// leg, which isn't fetched anywhere in this page's own data today).
+// net_cost is debit-positive (see position_log_service's convention) -
+// evaluateBwb wants a positive net CREDIT, hence the sign flip below.
+function BwbChartPanel({ row }) {
+  const result = evaluateBwb({
+    longLowStrike: row.long_low_strike,
+    shortMidStrike: row.short_mid_strike,
+    longHighStrike: row.long_high_strike,
+    netCreditPerShare: -row.net_cost,
+    contracts: row.contracts,
+    currentSpot: row.spot_price,
+  });
+
+  if (!result.valid) {
+    return (
+      <div className={styles.chartPanel}>
+        <p className={styles.chartError}>Can't chart this position: {result.errors.join(' ')}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.chartPanel}>
+      <p className={styles.chartSummary}>
+        Max Profit <strong className={tableStyles.positive}>{formatCurrency(result.totalMaxProfit)}</strong>
+        {' · '}
+        {result.isRiskFree ? (
+          <>Guaranteed Floor <strong className={tableStyles.positive}>{formatCurrency(result.guaranteedProfit)}</strong></>
+        ) : (
+          <>Max Loss <strong className={tableStyles.negative}>-{formatCurrency(result.totalMaxLoss)}</strong></>
+        )}
+        {!result.isRiskFree && result.downsideBreakeven != null && (
+          <> · Breakeven <strong>${result.downsideBreakeven.toFixed(2)}</strong></>
+        )}
+      </p>
+      <BwbEvalChart
+        curve={result.curve}
+        longLowStrike={result.longLowStrike}
+        shortMidStrike={result.shortMidStrike}
+        longHighStrike={result.longHighStrike}
+        currentSpot={result.currentSpot}
+        spotPnl={result.spotPnl}
+        totalMaxProfit={result.totalMaxProfit}
+        totalMaxLoss={result.totalMaxLoss}
+        guaranteedProfit={result.guaranteedProfit}
+        downsideBreakeven={result.downsideBreakeven}
+        isRiskFree={result.isRiskFree}
+      />
+    </div>
+  );
+}
 
 const LIQUIDITY_RANK = { critical: 0, warning: 1, ok: 2 };
 
@@ -251,6 +310,7 @@ export default function BwbTradesPage() {
   const { data: liquidityStatus } = useApiData(getLiquidityStatus, 'liquidityStatus');
   const [showAddForm, setShowAddForm] = useState(false);
   const [profitTarget, setProfitTarget] = useState(80);
+  const [chartRowId, setChartRowId] = useState(null);
 
   // Keyed by position_id (docs/liquiddecay.md) - see ActiveSpreadsPage's
   // identical comment for why this is position_id, not strategy_group.
@@ -331,16 +391,31 @@ export default function BwbTradesPage() {
               </thead>
               <tbody>
                 {sorted.map((r) => (
-                  <tr key={r.id}>
-                    {visibleColumns.map((col) => (
-                      <td key={col.key} className={NON_NUMERIC_COLUMNS.includes(col.key) ? '' : 'num'}>
-                        {col.render(r)}
+                  <Fragment key={r.id}>
+                    <tr>
+                      {visibleColumns.map((col) => (
+                        <td key={col.key} className={NON_NUMERIC_COLUMNS.includes(col.key) ? '' : 'num'}>
+                          {col.render(r)}
+                        </td>
+                      ))}
+                      <td className={styles.actionsCell}>
+                        <button
+                          className={styles.chartToggle}
+                          onClick={() => setChartRowId(chartRowId === r.id ? null : r.id)}
+                        >
+                          {chartRowId === r.id ? 'Hide Chart' : 'Chart'}
+                        </button>
+                        <BwbRowActions row={r} onClosed={refetch} onDeleted={refetch} />
                       </td>
-                    ))}
-                    <td className={styles.actionsCell}>
-                      <BwbRowActions row={r} onClosed={refetch} onDeleted={refetch} />
-                    </td>
-                  </tr>
+                    </tr>
+                    {chartRowId === r.id && (
+                      <tr>
+                        <td colSpan={visibleColumns.length + 1}>
+                          <BwbChartPanel row={r} />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>

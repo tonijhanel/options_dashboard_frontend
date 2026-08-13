@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { getActiveSpreads, updatePositionLogEntry, getIgnoredPositions, ignorePosition, unignorePosition, getLiquidityStatus } from '../api/client';
 import { useApiData } from '../lib/useApiData';
 import { useSortableData } from '../lib/useSortableData';
 import { pctOfMaxProfitCaptured } from '../lib/profitCaptured';
+import { evaluateCreditSpread } from '../lib/creditSpreadEval';
 import { LoadingView, ErrorView, EmptyView } from '../components/StateViews';
 import { formatCurrency } from '../components/SummaryBar';
 import PageHeader from '../components/PageHeader';
@@ -10,10 +11,72 @@ import SortableHeader from '../components/SortableHeader';
 import ColumnPicker, { useColumnVisibility } from '../components/ColumnPicker';
 import LiquidityBadge from '../components/LiquidityBadge';
 import ProfitTargetSlider from '../components/ProfitTargetSlider';
+import CreditSpreadEvalChart from '../components/CreditSpreadEvalChart';
 import tableStyles from '../components/Table.module.css';
 import styles from './ActiveSpreadsPage.module.css';
 
 const LIQUIDITY_RANK = { critical: 0, warning: 1, ok: 2 };
+
+// Days between today and the row's own expiration - the Credit Spread
+// Evaluator's math (lib/creditSpreadEval.js) needs SOME dte to run its
+// probability/EV calc, even though the at-expiration curve itself
+// (all this panel actually displays) doesn't depend on it at all.
+// Floored at 1 so an expiration-day position doesn't fail validation.
+function daysToExpiration(expiration) {
+  if (!expiration) return null;
+  const ms = new Date(expiration) - new Date();
+  return Math.max(1, Math.ceil(ms / 86400000));
+}
+
+// Reuses the standalone Credit Spread Evaluator's own math/chart
+// (lib/creditSpreadEval.js, CreditSpreadEvalChart.js) fed from this
+// ALREADY-OPEN position's real strikes/credit/contracts instead of a
+// hand-typed hypothetical - at-expiration payoff shape only ("Tier 1"
+// scope, 2026-08). iv is left unspecified (defaults to 30% inside the
+// evaluator) and only feeds the probability/EV numbers this panel
+// doesn't show - live IV per leg isn't fetched anywhere on this page,
+// so those numbers would be misleading if displayed; the curve itself
+// doesn't use iv/dte at all.
+function SpreadChartPanel({ row }) {
+  const result = evaluateCreditSpread({
+    shortStrike: row.short_strike,
+    longStrike: row.long_strike,
+    netCreditPerShare: row.net_entry,
+    contracts: row.contracts,
+    currentSpot: row.spot_price,
+    dte: daysToExpiration(row.expiration),
+  });
+
+  if (!result.valid) {
+    return (
+      <div className={styles.chartPanel}>
+        <p className={styles.chartError}>Can't chart this position: {result.errors.join(' ')}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.chartPanel}>
+      <p className={styles.chartSummary}>
+        Max Profit <strong className={tableStyles.positive}>{formatCurrency(result.totalMaxProfit)}</strong>
+        {' · '}
+        Max Loss <strong className={tableStyles.negative}>-{formatCurrency(result.totalMaxLoss)}</strong>
+        {' · '}
+        Breakeven <strong>${result.breakeven.toFixed(2)}</strong>
+      </p>
+      <CreditSpreadEvalChart
+        curve={result.curve}
+        shortStrike={result.shortStrike}
+        longStrike={result.longStrike}
+        currentSpot={result.currentSpot}
+        spotPnl={result.spotPnl}
+        totalMaxProfit={result.totalMaxProfit}
+        totalMaxLoss={result.totalMaxLoss}
+        breakeven={result.breakeven}
+      />
+    </div>
+  );
+}
 
 // Same visual/interaction pattern as Position Log's own Close action
 // (docs/spreadclose.md - reuses the existing PATCH /position-log/<id>
@@ -172,6 +235,7 @@ export default function ActiveSpreadsPage() {
   const { data: ignoredPositions, refetch: refetchIgnored } = useApiData(getIgnoredPositions, 'ignoredPositions');
   const { data: liquidityStatus } = useApiData(getLiquidityStatus, 'liquidityStatus');
   const [profitTarget, setProfitTarget] = useState(80);
+  const [chartRowId, setChartRowId] = useState(null);
 
   // Keyed by position_id (docs/liquiddecay.md) - every position_log row's
   // own id, regardless of position_type (naked_put, vertical_spread,
@@ -252,17 +316,32 @@ export default function ActiveSpreadsPage() {
               </thead>
               <tbody>
                 {sorted.map((r) => (
-                  <tr key={r.id}>
-                    {visibleColumns.map((col) => (
-                      <td key={col.key} className={NON_NUMERIC_COLUMNS.includes(col.key) ? '' : 'num'}>
-                        {col.render(r)}
+                  <Fragment key={r.id}>
+                    <tr>
+                      {visibleColumns.map((col) => (
+                        <td key={col.key} className={NON_NUMERIC_COLUMNS.includes(col.key) ? '' : 'num'}>
+                          {col.render(r)}
+                        </td>
+                      ))}
+                      <td className={styles.actionsCell}>
+                        <button
+                          className={styles.chartToggle}
+                          onClick={() => setChartRowId(chartRowId === r.id ? null : r.id)}
+                        >
+                          {chartRowId === r.id ? 'Hide Chart' : 'Chart'}
+                        </button>
+                        <SpreadRowActions row={r} onClosed={refetch} />
+                        <IgnoreButton row={r} onIgnored={() => { refetch(); refetchIgnored(); }} />
                       </td>
-                    ))}
-                    <td className={styles.actionsCell}>
-                      <SpreadRowActions row={r} onClosed={refetch} />
-                      <IgnoreButton row={r} onIgnored={() => { refetch(); refetchIgnored(); }} />
-                    </td>
-                  </tr>
+                    </tr>
+                    {chartRowId === r.id && (
+                      <tr>
+                        <td colSpan={visibleColumns.length + 1}>
+                          <SpreadChartPanel row={r} />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>

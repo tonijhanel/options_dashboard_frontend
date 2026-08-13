@@ -174,3 +174,39 @@
   font-size: 11px;
   color: var(--text-tertiary);
 }
+
+.chartToggle {
+  padding: var(--space-1) var(--space-3);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 12px;
+  margin-right: var(--space-2);
+}
+
+.chartToggle:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.chartPanel {
+  padding: var(--space-4);
+  background: var(--bg-card);
+}
+
+.chartSummary {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-3);
+}
+
+.chartSummary strong {
+  color: var(--text-primary);
+}
+
+.chartError {
+  font-size: 13px;
+  color: var(--negative);
+  margin: 0;
+}
