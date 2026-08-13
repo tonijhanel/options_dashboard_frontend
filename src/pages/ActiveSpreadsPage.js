@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { getActiveSpreads, updatePositionLogEntry, getIgnoredPositions, ignorePosition, unignorePosition, getLiquidityStatus } from '../api/client';
 import { useApiData } from '../lib/useApiData';
 import { useSortableData } from '../lib/useSortableData';
@@ -235,7 +235,7 @@ export default function ActiveSpreadsPage() {
   const { data: ignoredPositions, refetch: refetchIgnored } = useApiData(getIgnoredPositions, 'ignoredPositions');
   const { data: liquidityStatus } = useApiData(getLiquidityStatus, 'liquidityStatus');
   const [profitTarget, setProfitTarget] = useState(80);
-  const [chartRowId, setChartRowId] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
 
   // Keyed by position_id (docs/liquiddecay.md) - every position_log row's
   // own id, regardless of position_type (naked_put, vertical_spread,
@@ -271,6 +271,14 @@ export default function ActiveSpreadsPage() {
     spreads,
     (row, key) => COLUMNS.find((c) => c.key === key).getSortValue(row)
   );
+
+  useEffect(() => {
+    if (!selectedId && sorted.length > 0) {
+      setSelectedId(sorted[0].id);
+    }
+  }, [sorted, selectedId]);
+
+  const selected = sorted.find((r) => r.id === selectedId);
 
   if (loading && !data) return <LoadingView label="Loading active spreads" />;
   if (error && !data) return <ErrorView message={error} onRetry={refetch} />;
@@ -316,36 +324,50 @@ export default function ActiveSpreadsPage() {
               </thead>
               <tbody>
                 {sorted.map((r) => (
-                  <Fragment key={r.id}>
-                    <tr>
-                      {visibleColumns.map((col) => (
-                        <td key={col.key} className={NON_NUMERIC_COLUMNS.includes(col.key) ? '' : 'num'}>
-                          {col.render(r)}
-                        </td>
-                      ))}
-                      <td className={styles.actionsCell}>
-                        <button
-                          className={styles.chartToggle}
-                          onClick={() => setChartRowId(chartRowId === r.id ? null : r.id)}
-                        >
-                          {chartRowId === r.id ? 'Hide Chart' : 'Chart'}
-                        </button>
-                        <SpreadRowActions row={r} onClosed={refetch} />
-                        <IgnoreButton row={r} onIgnored={() => { refetch(); refetchIgnored(); }} />
+                  <tr key={r.id} className={styles.clickableRow} onClick={() => setSelectedId(r.id)}>
+                    {visibleColumns.map((col) => (
+                      <td key={col.key} className={NON_NUMERIC_COLUMNS.includes(col.key) ? '' : 'num'}>
+                        {col.render(r)}
                       </td>
-                    </tr>
-                    {chartRowId === r.id && (
-                      <tr>
-                        <td colSpan={visibleColumns.length + 1}>
-                          <SpreadChartPanel row={r} />
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
+                    ))}
+                    <td className={styles.actionsCell} onClick={(e) => e.stopPropagation()}>
+                      <SpreadRowActions row={r} onClosed={refetch} />
+                      <IgnoreButton row={r} onIgnored={() => { refetch(); refetchIgnored(); }} />
+                    </td>
+                  </tr>
                 ))}
               </tbody>
             </table>
           </div>
+
+          {selected && (
+            <>
+              <div className={styles.selectorRow}>
+                <label htmlFor="spread-select" className={styles.selectorLabel}>
+                  Chart - click a row above, or select here:
+                </label>
+                <select
+                  id="spread-select"
+                  className={styles.selector}
+                  value={selectedId || ''}
+                  onChange={(e) => setSelectedId(Number(e.target.value))}
+                >
+                  {sorted.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.ticker} {r.short_strike}/{r.long_strike} exp {r.expiration}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className={styles.detailCard}>
+                <h2 className={styles.chartTitle}>
+                  P&amp;L Chart for {selected.ticker} {selected.short_strike}/{selected.long_strike}
+                </h2>
+                <SpreadChartPanel row={selected} />
+              </div>
+            </>
+          )}
         </>
       )}
 

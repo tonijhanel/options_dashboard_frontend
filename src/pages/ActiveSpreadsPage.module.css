@@ -130,24 +130,48 @@
   padding: 0;
 }
 
-.chartToggle {
-  padding: var(--space-1) var(--space-3);
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text-secondary);
-  font-size: 12px;
-  margin-right: var(--space-2);
+.clickableRow {
+  cursor: pointer;
 }
 
-.chartToggle:hover {
-  border-color: var(--accent);
-  color: var(--text-primary);
+.selectorRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
+.selectorLabel {
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.selector {
+  flex: 1;
+  max-width: 420px;
+  padding: var(--space-2) var(--space-3);
+  font-size: 14px;
+}
+
+.detailCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: var(--space-4);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+}
+
+.chartTitle {
+  font-size: 15px;
+  font-weight: 600;
+  padding: var(--space-4) var(--space-4) 0;
+  margin: 0 0 var(--space-2);
 }
 
 .chartPanel {
-  padding: var(--space-4);
-  background: var(--bg-card);
+  padding: 0 var(--space-4) var(--space-4);
 }
 
 .chartSummary {
