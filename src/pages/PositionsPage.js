@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { getPositions, getRealizedPnl, getHedgeStatus, getLiquidityStatus, getIgnoredPositions, ignorePosition, unignorePosition } from '../api/client';
+import { getPositions, getRealizedPnl, getHedgeStatus, getLiquidityStatus, getIgnoredPositions, ignorePosition, unignorePosition, getActiveBwbs, getActiveSpreads } from '../api/client';
 import { useApiData } from '../lib/useApiData';
 import { useSortableData } from '../lib/useSortableData';
 import { computeStatus } from '../lib/positionSignal';
@@ -156,6 +156,11 @@ export default function PositionsPage() {
   const { data: hedgeStatus } = useApiData(getHedgeStatus, 'hedgeStatus');
   const { data: liquidityStatus } = useApiData(getLiquidityStatus, 'liquidityStatus');
   const { data: ignoredPositions, refetch: refetchIgnored } = useApiData(getIgnoredPositions, 'ignoredPositions');
+  // Fetched here ONLY for the Total Collateral Utilized summary tile below -
+  // this page still shows/manages CSPs exclusively, BWBs and vertical
+  // spreads have their own dedicated pages for that.
+  const { data: activeBwbs } = useApiData(getActiveBwbs, 'activeBwbs');
+  const { data: activeSpreads } = useApiData(getActiveSpreads, 'activeSpreads');
   const { getEntry: getNewsEntry } = useNewsSentiment();
 
   // Keyed by position_log_id (docs/quantfeatures.md Feature 2) - the only
@@ -218,6 +223,29 @@ export default function PositionsPage() {
       { grossPremium: 0, currentPL: 0 }
     );
   }, [data]);
+
+  // Total capital at risk across ALL three open-position strategies, not
+  // just the CSPs this page itself manages - CSP collateral is strike x
+  // 100 x contracts (same formula PortfolioOverviewPage's sector donut
+  // already uses); vertical spread collateral is the width between its
+  // two strikes x 100 x contracts; BWB collateral reuses max_loss exactly
+  // as-is from GET /active-bwbs - it's already the SAME formula as
+  // position_log_service.compute_bwb_collateral (net_cost minus the
+  // wing-width floor, x100xcontracts), just computed fresh off live
+  // entry data rather than the stored bwb_collateral_required column, so
+  // there's no need to duplicate that math here.
+  const totalCollateral = useMemo(() => {
+    const cspCollateral = (data?.positions || []).reduce(
+      (sum, p) => sum + (p.strike || 0) * 100 * (p.contracts || 0), 0
+    );
+    const spreadCollateral = (activeSpreads?.spreads || []).reduce(
+      (sum, s) => sum + Math.abs((s.short_strike || 0) - (s.long_strike || 0)) * 100 * (s.contracts || 0), 0
+    );
+    const bwbCollateral = (activeBwbs?.bwbs || []).reduce(
+      (sum, b) => sum + (b.max_loss || 0), 0
+    );
+    return cspCollateral + spreadCollateral + bwbCollateral;
+  }, [data, activeSpreads, activeBwbs]);
 
   // Default the detail selector to the position most in need of
   // attention - an 'action' tier if one exists, otherwise just the first
@@ -288,6 +316,12 @@ export default function PositionsPage() {
             label: 'Current Profit/Loss',
             value: portfolioTotals.currentPL,
             subTone: portfolioTotals.currentPL >= 0 ? 'positive' : undefined,
+          },
+          {
+            label: 'Total Collateral Utilized',
+            value: totalCollateral,
+            sub: 'Capital at risk across CSPs, spreads, and BWBs combined',
+            subTone: 'neutral',
           },
           ...(realizedPnl
             ? [
