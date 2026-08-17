@@ -113,16 +113,24 @@ function PackageKpiCard({ kpis, strategyLabel }) {
           <div className={styles.kpiLabel}>Avg Days in Trade</div>
           <div className={styles.kpiValue}>{kpis.avg_days_in_trade != null ? kpis.avg_days_in_trade.toFixed(1) : '—'}</div>
         </div>
-      </div>
-      <div className={styles.kpiSubRow}>
-        Total Profit{' '}
-        <span className={kpis.total_profit >= 0 ? tableStyles.positive : tableStyles.negative}>
-          {formatCurrency(kpis.total_profit)}
-        </span>
-        {' · '}Avg Winner{' '}
-        <span className={tableStyles.positive}>{kpis.avg_winner != null ? formatCurrency(kpis.avg_winner) : '—'}</span>
-        {' · '}Avg Loser{' '}
-        <span className={tableStyles.negative}>{kpis.avg_loser != null ? formatCurrency(kpis.avg_loser) : '—'}</span>
+        <div className={styles.kpiTile}>
+          <div className={styles.kpiLabel}>Total Profit</div>
+          <div className={`${styles.kpiValue} ${kpis.total_profit >= 0 ? tableStyles.positive : tableStyles.negative}`}>
+            {formatCurrency(kpis.total_profit)}
+          </div>
+        </div>
+        <div className={styles.kpiTile}>
+          <div className={styles.kpiLabel}>Avg Winner</div>
+          <div className={`${styles.kpiValue} ${tableStyles.positive}`}>
+            {kpis.avg_winner != null ? formatCurrency(kpis.avg_winner) : '—'}
+          </div>
+        </div>
+        <div className={styles.kpiTile}>
+          <div className={styles.kpiLabel}>Avg Loser</div>
+          <div className={`${styles.kpiValue} ${tableStyles.negative}`}>
+            {kpis.avg_loser != null ? formatCurrency(kpis.avg_loser) : '—'}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -393,13 +401,6 @@ export default function PnlHistoryPage() {
 
       {error && <ErrorView message={error} onRetry={() => fetchData(range.start, range.end)} />}
 
-      {data?.package_kpis && (
-        <PackageKpiCard
-          kpis={data.package_kpis[typeFilter]}
-          strategyLabel={TYPE_FILTERS.find((t) => t.key === typeFilter)?.label}
-        />
-      )}
-
       {filtered && (
         <>
           <SummaryBar
@@ -420,6 +421,13 @@ export default function PnlHistoryPage() {
               },
             ]}
           />
+
+          {data?.package_kpis && (
+            <PackageKpiCard
+              kpis={data.package_kpis[typeFilter]}
+              strategyLabel={TYPE_FILTERS.find((t) => t.key === typeFilter)?.label}
+            />
+          )}
 
           <OpenedPositionsTable positions={filtered.premium_collected.positions} />
           <ClosedPositionsTable positions={filtered.realized_pnl.positions} />
