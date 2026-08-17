@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { getPositions, getRealizedPnl, getHedgeStatus, getLiquidityStatus, getIgnoredPositions, ignorePosition, unignorePosition, getActiveBwbs, getActiveSpreads } from '../api/client';
+import { getPositions, getRealizedPnl, getHedgeStatus, getLiquidityStatus, getIgnoredPositions, ignorePosition, unignorePosition, getActiveBwbs, getActiveSpreads, getMarketIndexes } from '../api/client';
 import { useApiData } from '../lib/useApiData';
 import { useSortableData } from '../lib/useSortableData';
 import { computeStatus } from '../lib/positionSignal';
@@ -22,6 +22,7 @@ import SortableHeader from '../components/SortableHeader';
 import ColumnPicker, { useColumnVisibility } from '../components/ColumnPicker';
 import CalendarBadge from '../components/CalendarBadge';
 import LiquidityBadge from '../components/LiquidityBadge';
+import MarketIndexesTicker from '../components/MarketIndexesTicker';
 import { computeHedgeEntryDebit, formatHedgeLegsSummary } from '../lib/hedgeMath';
 import tableStyles from '../components/Table.module.css';
 import styles from './PositionsPage.module.css';
@@ -161,6 +162,7 @@ export default function PositionsPage() {
   // spreads have their own dedicated pages for that.
   const { data: activeBwbs } = useApiData(getActiveBwbs, 'activeBwbs');
   const { data: activeSpreads } = useApiData(getActiveSpreads, 'activeSpreads');
+  const { data: marketIndexes } = useApiData(getMarketIndexes, 'marketIndexes');
   const { getEntry: getNewsEntry } = useNewsSentiment();
 
   // Keyed by position_log_id (docs/quantfeatures.md Feature 2) - the only
@@ -287,6 +289,8 @@ export default function PositionsPage() {
       />
 
       {error && <ErrorView message={error} onRetry={refetch} />}
+
+      <MarketIndexesTicker indexes={marketIndexes?.indexes} />
 
       {hedgeStatus?.open_position && (() => {
         const openPosition = hedgeStatus.open_position;

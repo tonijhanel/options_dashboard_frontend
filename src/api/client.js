@@ -52,6 +52,10 @@ export function getRawPositions() {
   return request('/raw-positions');
 }
 
+export function getMarketIndexes() {
+  return request('/market-indexes');
+}
+
 export function getTspPortfolio() {
   return request('/tsp-portfolio');
 }
