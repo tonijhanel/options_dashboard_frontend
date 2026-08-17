@@ -58,6 +58,21 @@ const CLOSED_COLUMNS = [
     render: (p) => (p.annualized_roc != null ? `${p.annualized_roc.toFixed(1)}%` : '—') },
   { key: 'realized_pnl', label: 'P&L', sortable: true, getSortValue: (p) => p.realized_pnl,
     render: (p) => (p.realized_pnl !== null ? formatCurrency(p.realized_pnl) : 'missing price') },
+  { key: 'net_chain_pnl', label: 'Net Chain P&L', sortable: true, getSortValue: (p) => p.net_chain_pnl,
+    // Only present on rows that were rolled from or rolled into something
+    // else (position_log_service.compute_chain_net_pnl) - the TRUE P&L
+    // across every leg of that roll, not just this one row's own close.
+    // A roll's first leg often looks like a loss on its own (that's
+    // usually why you rolled); this is the number that actually answers
+    // "did the roll work out."
+    render: (p) => (
+      p.net_chain_pnl != null ? (
+        <>
+          {formatCurrency(p.net_chain_pnl)}
+          {p.chain_open && <span className={styles.chainOpenTag}> (chain open)</span>}
+        </>
+      ) : '—'
+    ) },
 ];
 
 function OpenedPositionsTable({ positions }) {
@@ -164,11 +179,13 @@ function ClosedPositionsTable({ positions }) {
                       className={
                         col.key === 'realized_pnl'
                           ? `num ${p.realized_pnl === null ? tableStyles.muted : p.realized_pnl >= 0 ? tableStyles.positive : tableStyles.negative}`
-                          : col.key === 'close_reason'
-                            ? (p.close_reason ? '' : tableStyles.muted)
-                            : col.key === 'ticker' || col.key === 'closed_date'
-                              ? ''
-                              : 'num'
+                          : col.key === 'net_chain_pnl'
+                            ? `num ${p.net_chain_pnl == null ? tableStyles.muted : p.net_chain_pnl >= 0 ? tableStyles.positive : tableStyles.negative}`
+                            : col.key === 'close_reason'
+                              ? (p.close_reason ? '' : tableStyles.muted)
+                              : col.key === 'ticker' || col.key === 'closed_date'
+                                ? ''
+                                : 'num'
                       }
                     >
                       {col.render(p)}
@@ -255,6 +272,8 @@ export default function PnlHistoryPage() {
         <strong>Premium Collected</strong> counts every position opened in this range, whether it's
         still open or has since closed - it won't shrink as positions close. <strong>Realized P&amp;L</strong>{' '}
         only counts positions actually closed within this range, using their recorded close price.
+        For a rolled position, that's just this ONE leg's own result - see <strong>Net Chain P&amp;L</strong>{' '}
+        on rows that were rolled for the true total across every leg of that roll, start to finish.
       </p>
 
       <div className={styles.controls}>
