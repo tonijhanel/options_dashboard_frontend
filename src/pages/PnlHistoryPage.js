@@ -75,6 +75,59 @@ const CLOSED_COLUMNS = [
     ) },
 ];
 
+// docs/winrates.md - win-rate/performance stats at the PACKAGE level (a
+// full roll chain counted once, not each leg the way Realized P&L above
+// scores things) for packages whose FINAL leg closed in the currently
+// selected date range. kpis is one bucket of GET /pnl-range's
+// package_kpis (already computed server-side per strategy, so this reads
+// straight off `data`, not the client-side-filtered `filtered` object).
+function PackageKpiCard({ kpis, strategyLabel }) {
+  if (!kpis || kpis.total_trades === 0) {
+    return (
+      <div className={styles.kpiCard}>
+        <h3 className={styles.kpiCardTitle}>Package Win Rate - {strategyLabel}</h3>
+        <p className={styles.kpiEmpty}>No fully-closed packages in this range.</p>
+      </div>
+    );
+  }
+
+  const winRateTone = kpis.win_rate_pct >= 50 ? tableStyles.positive : tableStyles.negative;
+
+  return (
+    <div className={styles.kpiCard}>
+      <h3 className={styles.kpiCardTitle}>Package Win Rate - {strategyLabel}</h3>
+      <div className={styles.kpiGrid}>
+        <div className={styles.kpiTile}>
+          <div className={styles.kpiLabel}>True Win Rate</div>
+          <div className={`${styles.kpiValue} ${winRateTone}`}>{kpis.win_rate_pct.toFixed(1)}%</div>
+        </div>
+        <div className={styles.kpiTile}>
+          <div className={styles.kpiLabel}>Win / Loss</div>
+          <div className={styles.kpiValue}>{kpis.winning_trades}W / {kpis.losing_trades}L</div>
+        </div>
+        <div className={styles.kpiTile}>
+          <div className={styles.kpiLabel}>Recovery Ratio</div>
+          <div className={styles.kpiValue}>{kpis.recovery_ratio != null ? kpis.recovery_ratio.toFixed(2) : '—'}</div>
+        </div>
+        <div className={styles.kpiTile}>
+          <div className={styles.kpiLabel}>Avg Days in Trade</div>
+          <div className={styles.kpiValue}>{kpis.avg_days_in_trade != null ? kpis.avg_days_in_trade.toFixed(1) : '—'}</div>
+        </div>
+      </div>
+      <div className={styles.kpiSubRow}>
+        Total Profit{' '}
+        <span className={kpis.total_profit >= 0 ? tableStyles.positive : tableStyles.negative}>
+          {formatCurrency(kpis.total_profit)}
+        </span>
+        {' · '}Avg Winner{' '}
+        <span className={tableStyles.positive}>{kpis.avg_winner != null ? formatCurrency(kpis.avg_winner) : '—'}</span>
+        {' · '}Avg Loser{' '}
+        <span className={tableStyles.negative}>{kpis.avg_loser != null ? formatCurrency(kpis.avg_loser) : '—'}</span>
+      </div>
+    </div>
+  );
+}
+
 function OpenedPositionsTable({ positions }) {
   const { hidden, toggle, visibleColumns } = useColumnVisibility(OPENED_COLUMNS, 'pnlHistoryOpenedTable');
   const { sorted, sortKey, direction, requestSort } = useSortableData(
@@ -339,6 +392,13 @@ export default function PnlHistoryPage() {
       </div>
 
       {error && <ErrorView message={error} onRetry={() => fetchData(range.start, range.end)} />}
+
+      {data?.package_kpis && (
+        <PackageKpiCard
+          kpis={data.package_kpis[typeFilter]}
+          strategyLabel={TYPE_FILTERS.find((t) => t.key === typeFilter)?.label}
+        />
+      )}
 
       {filtered && (
         <>
