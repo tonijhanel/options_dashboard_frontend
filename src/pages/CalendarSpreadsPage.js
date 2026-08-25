@@ -342,10 +342,35 @@ const COLUMNS = [
   { key: 'annualized_roc', label: 'Annualized ROC', sortable: true, getSortValue: (r) => r.annualized_roc,
     render: (r) => (r.annualized_roc != null ? `${r.annualized_roc.toFixed(1)}%` : '—') },
   { key: 'strategy_group', label: 'Group', sortable: true, getSortValue: (r) => r.strategy_group || '',
-    render: (r) => r.strategy_group || '—' },
+    render: (r) => (
+      r.strategy_group
+        ? <span className={`${styles.groupTag} ${styles[`groupTag${groupTagVariant(r.strategy_group)}`]}`}>{r.strategy_group}</span>
+        : '—'
+    ) },
 ];
 
 const NON_NUMERIC_COLUMNS = ['ticker', 'option_type', 'front_expiration', 'back_expiration', 'strategy_group'];
+
+// Purely visual grouping (per user request, 2026-08: "we don't need to
+// change the actual table but it would be nice if they were grouped") -
+// a colored tag per distinct strategy_group VALUE, so a double calendar's
+// two rows are recognizable at a glance wherever they land in the
+// current sort order, WITHOUT forcing a group-adjacent sort the way
+// RawPositionsPage does (that page gave up column sorting entirely for
+// this; this page explicitly keeps it - matching the same "keep
+// sortable columns" call already made for BwbTradesPage/ActiveSpreadsPage).
+// Color picked by a deterministic hash of the group name itself, not a
+// "first-seen" index - so a group's color stays stable across re-sorts/
+// re-renders instead of depending on row order.
+const GROUP_TAG_VARIANTS = 5;
+
+function groupTagVariant(groupName) {
+  let hash = 0;
+  for (let i = 0; i < groupName.length; i++) {
+    hash = (hash * 31 + groupName.charCodeAt(i)) % GROUP_TAG_VARIANTS;
+  }
+  return hash;
+}
 
 export default function CalendarSpreadsPage() {
   const { data, error, loading, refetch } = useApiData(getActiveCalendars, 'activeCalendars');

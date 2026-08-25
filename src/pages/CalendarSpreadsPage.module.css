@@ -268,3 +268,19 @@
   color: var(--text-primary);
 }
 
+.groupTag {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-3);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.groupTag0 { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.groupTag1 { color: var(--status-take-profit); background: var(--status-take-profit-bg); }
+.groupTag2 { color: var(--status-assignment); background: var(--status-assignment-bg); }
+.groupTag3 { color: var(--status-roll-hold); background: var(--status-roll-hold-bg); }
+.groupTag4 { color: var(--negative); background: color-mix(in srgb, var(--negative) 12%, transparent); }
+
