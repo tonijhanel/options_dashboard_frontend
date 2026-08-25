@@ -4,6 +4,7 @@ import { useApiData } from '../lib/useApiData';
 import { useSortableData } from '../lib/useSortableData';
 import { pctOfMaxProfitCaptured, profitCaptureStatus } from '../lib/profitCaptured';
 import { evaluateCreditSpread } from '../lib/creditSpreadEval';
+import { computeDTE } from '../lib/dte';
 import { LoadingView, ErrorView, EmptyView } from '../components/StateViews';
 import { formatCurrency } from '../components/SummaryBar';
 import PageHeader from '../components/PageHeader';
@@ -201,6 +202,8 @@ const COLUMNS = [
     render: (r) => (r.break_even != null ? r.break_even.toFixed(2) : '—') },
   { key: 'expiration', label: 'Expiration', sortable: true, getSortValue: (r) => r.expiration,
     render: (r) => r.expiration },
+  { key: 'dte', label: 'DTE', sortable: true, getSortValue: (r) => computeDTE(r.expiration),
+    render: (r) => computeDTE(r.expiration) },
   { key: 'contracts', label: 'Contracts', sortable: true, getSortValue: (r) => r.contracts,
     render: (r) => r.contracts },
   { key: 'net_entry', label: 'Net Entry', sortable: true, getSortValue: (r) => r.net_entry,
