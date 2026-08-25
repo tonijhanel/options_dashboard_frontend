@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { getPositions, getRealizedPnl, getHedgeStatus, getLiquidityStatus, getIgnoredPositions, ignorePosition, unignorePosition, getActiveBwbs, getActiveSpreads, getMarketIndexes } from '../api/client';
+import { getPositions, getRealizedPnl, getHedgeStatus, getLiquidityStatus, getIgnoredPositions, ignorePosition, unignorePosition, getActiveBwbs, getActiveSpreads, getActiveCalendars, getMarketIndexes } from '../api/client';
 import { useApiData } from '../lib/useApiData';
 import { useSortableData } from '../lib/useSortableData';
 import { computeStatus } from '../lib/positionSignal';
@@ -158,10 +158,11 @@ export default function PositionsPage() {
   const { data: liquidityStatus } = useApiData(getLiquidityStatus, 'liquidityStatus');
   const { data: ignoredPositions, refetch: refetchIgnored } = useApiData(getIgnoredPositions, 'ignoredPositions');
   // Fetched here ONLY for the Total Collateral Utilized summary tile below -
-  // this page still shows/manages CSPs exclusively, BWBs and vertical
-  // spreads have their own dedicated pages for that.
+  // this page still shows/manages CSPs exclusively, BWBs/vertical spreads/
+  // calendars have their own dedicated pages for that.
   const { data: activeBwbs } = useApiData(getActiveBwbs, 'activeBwbs');
   const { data: activeSpreads } = useApiData(getActiveSpreads, 'activeSpreads');
+  const { data: activeCalendars } = useApiData(getActiveCalendars, 'activeCalendars');
   const { data: marketIndexes } = useApiData(getMarketIndexes, 'marketIndexes');
   const { getEntry: getNewsEntry } = useNewsSentiment();
 
@@ -226,7 +227,7 @@ export default function PositionsPage() {
     );
   }, [data]);
 
-  // Total capital at risk across ALL three open-position strategies, not
+  // Total capital at risk across ALL FOUR open-position strategies, not
   // just the CSPs this page itself manages - CSP collateral is strike x
   // 100 x contracts (same formula PortfolioOverviewPage's sector donut
   // already uses); vertical spread collateral is the width between its
@@ -235,7 +236,14 @@ export default function PositionsPage() {
   // position_log_service.compute_bwb_collateral (net_cost minus the
   // wing-width floor, x100xcontracts), just computed fresh off live
   // entry data rather than the stored bwb_collateral_required column, so
-  // there's no need to duplicate that math here.
+  // there's no need to duplicate that math here. Calendar collateral is
+  // the net debit paid (net_debit_entry x 100 x contracts) - a long
+  // calendar is a fully-paid-for debit position with no naked short
+  // exposure requiring strike-width margin the way a vertical spread
+  // does, matching position_log_service.compute_collateral_required's
+  // calendar branch and calendar_tracking_service's live ROC denominator
+  // (2026-08 - this tile was built before calendars existed as a
+  // strategy, so it never accounted for them until now).
   const totalCollateral = useMemo(() => {
     const cspCollateral = (data?.positions || []).reduce(
       (sum, p) => sum + (p.strike || 0) * 100 * (p.contracts || 0), 0
@@ -246,8 +254,11 @@ export default function PositionsPage() {
     const bwbCollateral = (activeBwbs?.bwbs || []).reduce(
       (sum, b) => sum + (b.max_loss || 0), 0
     );
-    return cspCollateral + spreadCollateral + bwbCollateral;
-  }, [data, activeSpreads, activeBwbs]);
+    const calendarCollateral = (activeCalendars?.calendars || []).reduce(
+      (sum, c) => sum + Math.max(c.net_debit_entry || 0, 0) * 100 * (c.contracts || 0), 0
+    );
+    return cspCollateral + spreadCollateral + bwbCollateral + calendarCollateral;
+  }, [data, activeSpreads, activeBwbs, activeCalendars]);
 
   // Default the detail selector to the position most in need of
   // attention - an 'action' tier if one exists, otherwise just the first
@@ -324,7 +335,7 @@ export default function PositionsPage() {
           {
             label: 'Total Collateral Utilized',
             value: totalCollateral,
-            sub: 'Capital at risk across CSPs, spreads, and BWBs combined',
+            sub: 'Capital at risk across CSPs, spreads, BWBs, and calendars combined',
             subTone: 'neutral',
           },
           ...(realizedPnl
