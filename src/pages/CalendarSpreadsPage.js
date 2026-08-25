@@ -18,11 +18,13 @@ import styles from './CalendarSpreadsPage.module.css';
 
 // Reuses the standalone-evaluator pattern (lib/calendarEval.js,
 // CalendarEvalChart.js) fed from this ALREADY-OPEN position's real
-// strike/expirations/entry prices/live back-leg IV instead of a
-// hand-typed hypothetical - "value at front expiration" curve, requires
-// Black-Scholes (unlike BWB/vertical's pure intrinsic-value curves)
-// since the back leg still carries time value at that point.
-function CalendarChartPanel({ row, ivShiftPct }) {
+// strike/expirations/entry prices/live front+back IV instead of a
+// hand-typed hypothetical. docs/calendarchart.md's dual-curve chart:
+// "expiry" (value at front expiration) and "current" (theoretical value
+// today, both legs still alive) - requires Black-Scholes throughout
+// (unlike BWB/vertical's pure intrinsic-value curves), since the back
+// leg still carries time value even at front expiration.
+function CalendarChartPanel({ row, ivShiftPct, showLegs }) {
   const result = evaluateCalendar({
     optionType: row.option_type,
     strike: row.strike,
@@ -31,6 +33,7 @@ function CalendarChartPanel({ row, ivShiftPct }) {
     netDebitEntryPerShare: row.net_debit_entry,
     contracts: row.contracts,
     currentSpot: row.spot_price,
+    sigmaFront: row.front_iv,
     sigmaBack: row.back_iv,
     ivShiftPct,
   });
@@ -45,19 +48,49 @@ function CalendarChartPanel({ row, ivShiftPct }) {
 
   return (
     <div className={styles.chartPanel}>
-      <p className={styles.chartSummary}>
-        Curve Max Profit <strong className={tableStyles.positive}>{formatCurrency(result.curveMaxProfit)}</strong>
-        {' · '}
-        Curve Max Loss <strong className={tableStyles.negative}>{formatCurrency(result.curveMaxLoss)}</strong>
-        {result.usedDefaultIv && (
-          <> · <span className={styles.ivNote}>using default {Math.round(result.sigmaBack * 100)}% IV - no live quote available</span></>
-        )}
-      </p>
+      {(result.usedDefaultFrontIv || result.usedDefaultBackIv) && (
+        <p className={styles.ivNote}>
+          {result.usedDefaultFrontIv && `Using default ${Math.round(result.sigmaFront * 100)}% IV for the front leg (no live quote available). `}
+          {result.usedDefaultBackIv && `Using default ${Math.round(result.sigmaBack * 100)}% IV for the back leg (no live quote available).`}
+        </p>
+      )}
+      <div className={styles.statsGrid}>
+        <div className={styles.statsTile}>
+          <div className={styles.statsLabel}>Max Profit (est)</div>
+          <div className={`${styles.statsValue} ${tableStyles.positive}`}>{formatCurrency(result.maxProfitEst)}</div>
+        </div>
+        <div className={styles.statsTile}>
+          <div className={styles.statsLabel}>Max Loss (est)</div>
+          <div className={`${styles.statsValue} ${tableStyles.negative}`}>-{formatCurrency(result.maxLossEst)}</div>
+        </div>
+        <div className={styles.statsTile}>
+          <div className={styles.statsLabel}>Breakeven(s)</div>
+          <div className={styles.statsValue}>
+            {result.breakevens.length ? result.breakevens.map((b) => `$${b.toFixed(2)}`).join(' / ') : '—'}
+          </div>
+        </div>
+        <div className={styles.statsTile}>
+          <div className={styles.statsLabel}>Risk / Reward</div>
+          <div className={styles.statsValue}>{result.riskReward != null ? result.riskReward.toFixed(2) : '—'}</div>
+        </div>
+        <div className={styles.statsTile}>
+          <div className={styles.statsLabel}>Prob. Max Profit</div>
+          <div className={styles.statsValue}>{result.probMaxProfitPct != null ? `${result.probMaxProfitPct.toFixed(1)}%` : '—'}</div>
+        </div>
+        <div className={styles.statsTile}>
+          <div className={styles.statsLabel}>Prob. Any Profit</div>
+          <div className={styles.statsValue}>
+            {result.probAnyProfitPct != null ? `${result.probAnyProfitPct.toFixed(1)}%` : `— (${result.breakevenCount} breakeven${result.breakevenCount === 1 ? '' : 's'})`}
+          </div>
+        </div>
+      </div>
       <CalendarEvalChart
         curve={result.curve}
         strike={result.strike}
         currentSpot={result.currentSpot}
         spotPnl={result.spotPnl}
+        breakevens={result.breakevens}
+        showLegs={showLegs}
       />
     </div>
   );
@@ -70,12 +103,14 @@ function CombinedCalendarChartPanel({ rowA, rowB, ivShiftPct }) {
   const resultA = evaluateCalendar({
     optionType: rowA.option_type, strike: rowA.strike, frontExpiration: rowA.front_expiration,
     backExpiration: rowA.back_expiration, netDebitEntryPerShare: rowA.net_debit_entry,
-    contracts: rowA.contracts, currentSpot: rowA.spot_price, sigmaBack: rowA.back_iv, ivShiftPct,
+    contracts: rowA.contracts, currentSpot: rowA.spot_price,
+    sigmaFront: rowA.front_iv, sigmaBack: rowA.back_iv, ivShiftPct,
   });
   const resultB = evaluateCalendar({
     optionType: rowB.option_type, strike: rowB.strike, frontExpiration: rowB.front_expiration,
     backExpiration: rowB.back_expiration, netDebitEntryPerShare: rowB.net_debit_entry,
-    contracts: rowB.contracts, currentSpot: rowB.spot_price, sigmaBack: rowB.back_iv, ivShiftPct,
+    contracts: rowB.contracts, currentSpot: rowB.spot_price,
+    sigmaFront: rowB.front_iv, sigmaBack: rowB.back_iv, ivShiftPct,
   });
 
   if (!resultA.valid || !resultB.valid) {
@@ -99,7 +134,7 @@ function CombinedCalendarChartPanel({ rowA, rowB, ivShiftPct }) {
         {' · '}
         Combined Curve Max Loss <strong className={tableStyles.negative}>{formatCurrency(combinedMaxLoss)}</strong>
       </p>
-      <CalendarEvalChart curve={combined} currentSpot={spot} spotPnl={spotPnl} title="Combined P&L at front expiration" />
+      <CalendarEvalChart curve={combined} currentSpot={spot} spotPnl={spotPnl} showCurrentCurve={false} />
     </div>
   );
 }
@@ -317,6 +352,7 @@ export default function CalendarSpreadsPage() {
   const { data, error, loading, refetch } = useApiData(getActiveCalendars, 'activeCalendars');
   const [showAddForm, setShowAddForm] = useState(false);
   const [ivShiftPct, setIvShiftPct] = useState(0);
+  const [showLegs, setShowLegs] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
 
   const calendars = data?.calendars || [];
@@ -431,13 +467,19 @@ export default function CalendarSpreadsPage() {
                 </select>
               </div>
 
-              <IVShiftSlider value={ivShiftPct} onChange={setIvShiftPct} />
+              <div className={styles.chartControlsRow}>
+                <IVShiftSlider value={ivShiftPct} onChange={setIvShiftPct} />
+                <label className={styles.showLegsToggle}>
+                  <input type="checkbox" checked={showLegs} onChange={(e) => setShowLegs(e.target.checked)} />
+                  Show legs (debug)
+                </label>
+              </div>
 
               <div className={styles.detailCard}>
                 <h2 className={styles.chartTitle}>
                   P&amp;L Chart for {selected.ticker} {selected.strike} {selected.option_type} ({selected.front_expiration}/{selected.back_expiration})
                 </h2>
-                <CalendarChartPanel row={selected} ivShiftPct={ivShiftPct} />
+                <CalendarChartPanel row={selected} ivShiftPct={ivShiftPct} showLegs={showLegs} />
               </div>
 
               {combinedPartner && (

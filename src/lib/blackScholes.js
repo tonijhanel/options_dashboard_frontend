@@ -65,4 +65,26 @@ export function probItmAtExpiration(S, K, T, r, sigma) {
   return normCdf(-d2);
 }
 
+/**
+ * Risk-neutral probability the terminal price lands strictly between
+ * `low` and `high` at time T - the same lognormal machinery as
+ * probItmAtExpiration (P(S_T < X) = normCdf(-d2(X))), just evaluated at
+ * two thresholds and subtracted, rather than one. Added for the Calendar
+ * Spread chart's "probability of max profit" (a narrow band around the
+ * strike) and "probability of any profit" (between the two breakevens)
+ * stats - lib/calendarEval.js.
+ */
+export function probBetween(S, low, high, T, r, sigma) {
+  if (low >= high) return 0;
+  if (T <= 0 || sigma <= 0 || S <= 0) {
+    return (S >= low && S <= high) ? 1.0 : 0.0;
+  }
+  const d2 = (X) => {
+    const d1 = (Math.log(S / X) + (r + 0.5 * sigma ** 2) * T) / (sigma * Math.sqrt(T));
+    return d1 - sigma * Math.sqrt(T);
+  };
+  // P(S_T < high) - P(S_T < low)
+  return Math.max(normCdf(-d2(high)) - normCdf(-d2(low)), 0);
+}
+
 export { RISK_FREE_RATE, DEFAULT_IV };
