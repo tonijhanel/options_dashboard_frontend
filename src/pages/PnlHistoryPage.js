@@ -321,14 +321,22 @@ export default function PnlHistoryPage() {
     const matchesFilter = (p) => typeFilter === 'all' || p.position_type === typeFilter;
 
     const premiumPositions = data.premium_collected.positions.filter(matchesFilter);
-    const premiumTotal = premiumPositions.reduce((sum, p) => sum + (p.premium || 0), 0);
+    // Net-credit strategies (CSP/spread/BWB) vs. calendars (net debit) are
+    // summed separately - compute_premium already returns calendars' as
+    // negative (debit paid), so combining them into one total would net
+    // credits against debits instead of showing either figure honestly.
+    const creditPositions = premiumPositions.filter((p) => p.position_type !== 'calendar');
+    const creditTotal = creditPositions.reduce((sum, p) => sum + (p.premium || 0), 0);
+    const debitPositions = premiumPositions.filter((p) => p.position_type === 'calendar');
+    const debitTotal = debitPositions.reduce((sum, p) => sum + (p.premium || 0), 0);
 
     const realizedPositions = data.realized_pnl.positions.filter(matchesFilter);
     const realizedTotal = realizedPositions.reduce((sum, p) => sum + (p.realized_pnl || 0), 0);
     const realizedMissingCount = realizedPositions.filter((p) => p.realized_pnl === null).length;
 
     return {
-      premium_collected: { total: premiumTotal, count: premiumPositions.length, positions: premiumPositions },
+      premium_collected: { total: creditTotal, count: creditPositions.length, positions: premiumPositions },
+      premium_paid: { total: Math.abs(debitTotal), count: debitPositions.length },
       realized_pnl: {
         realized_pnl: Math.round(realizedTotal * 100) / 100,
         closed_count: realizedPositions.length,
@@ -358,8 +366,11 @@ export default function PnlHistoryPage() {
       <PageHeader title="P&L History" onRefresh={() => fetchData(range.start, range.end)} refreshing={loading} />
 
       <p className={styles.explainer}>
-        <strong>Premium Collected</strong> counts every position opened in this range, whether it's
-        still open or has since closed - it won't shrink as positions close. <strong>Realized P&amp;L</strong>{' '}
+        <strong>Premium Collected</strong> counts every net-credit position (CSP, spread, BWB) opened in
+        this range, whether it's still open or has since closed - it won't shrink as positions close.
+        <strong> Premium Paid</strong> is the same idea for calendar positions, shown separately since
+        they're a net-debit strategy and summing credits and debits together into one number would be
+        misleading. <strong>Realized P&amp;L</strong>{' '}
         only counts positions actually closed within this range, using their recorded close price.
         For a rolled position, that's just this ONE leg's own result - see <strong>Net Chain P&amp;L</strong>{' '}
         on rows that were rolled for the true total across every leg of that roll, start to finish.
@@ -438,7 +449,13 @@ export default function PnlHistoryPage() {
               {
                 label: 'Premium Collected',
                 value: filtered.premium_collected.total,
-                sub: `${filtered.premium_collected.count} position(s) opened in range`,
+                sub: `${filtered.premium_collected.count} net-credit position(s) opened in range`,
+                subTone: 'neutral',
+              },
+              {
+                label: 'Premium Paid',
+                value: filtered.premium_paid.total,
+                sub: `${filtered.premium_paid.count} calendar position(s) opened in range`,
                 subTone: 'neutral',
               },
               {

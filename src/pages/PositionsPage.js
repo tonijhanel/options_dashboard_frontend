@@ -216,16 +216,27 @@ export default function PositionsPage() {
     (row, key) => COLUMNS.find((c) => c.key === key).getSortValue(row)
   );
 
+  // grossPremium stays CSP-only by design (this page's own "day-one cash
+  // cushion" metric, not meant to span strategies). currentPL sums live
+  // P&L across ALL FOUR open-position strategies, same reasoning/data
+  // sources as totalCollateral below - was CSP-only before, which under-
+  // reported real portfolio P&L once spreads/BWBs/calendars existed.
   const portfolioTotals = useMemo(() => {
-    if (!data?.positions) return { grossPremium: 0, currentPL: 0 };
-    return data.positions.reduce(
+    const cspTotals = (data?.positions || []).reduce(
       (acc, p) => ({
         grossPremium: acc.grossPremium + Math.abs(p.contracts) * Math.abs(p.entry_price) * 100,
         currentPL: acc.currentPL + (p.pl_dollars || 0),
       }),
       { grossPremium: 0, currentPL: 0 }
     );
-  }, [data]);
+    const spreadPL = (activeSpreads?.spreads || []).reduce((sum, s) => sum + (s.live_pnl || 0), 0);
+    const bwbPL = (activeBwbs?.bwbs || []).reduce((sum, b) => sum + (b.live_pnl || 0), 0);
+    const calendarPL = (activeCalendars?.calendars || []).reduce((sum, c) => sum + (c.live_pnl || 0), 0);
+    return {
+      grossPremium: cspTotals.grossPremium,
+      currentPL: cspTotals.currentPL + spreadPL + bwbPL + calendarPL,
+    };
+  }, [data, activeSpreads, activeBwbs, activeCalendars]);
 
   // Total capital at risk across ALL FOUR open-position strategies, not
   // just the CSPs this page itself manages - CSP collateral is strike x
@@ -330,6 +341,7 @@ export default function PositionsPage() {
           {
             label: 'Current Profit/Loss',
             value: portfolioTotals.currentPL,
+            sub: 'Live P&L across CSPs, spreads, BWBs, and calendars combined',
             subTone: portfolioTotals.currentPL >= 0 ? 'positive' : undefined,
           },
           {
