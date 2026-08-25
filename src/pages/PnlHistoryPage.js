@@ -85,6 +85,20 @@ const CLOSED_COLUMNS = [
         </>
       ) : '—'
     ) },
+  { key: 'net_group_pnl', label: 'Net Group P&L', sortable: true, getSortValue: (p) => p.net_group_pnl,
+    // Only present on a calendar row sharing a strategy_group with
+    // another calendar (position_log_service.compute_group_net_pnl,
+    // docs/calendarclosing.md) - a double calendar's two legs, same
+    // "one leg alone can look like a loss" reasoning as Net Chain P&L,
+    // just linked by a shared tag instead of a roll chain.
+    render: (p) => (
+      p.net_group_pnl != null ? (
+        <>
+          {formatCurrency(p.net_group_pnl)}
+          {p.group_open && <span className={styles.chainOpenTag}> (group open)</span>}
+        </>
+      ) : '—'
+    ) },
 ];
 
 // docs/winrates.md - win-rate/performance stats at the PACKAGE level (a
@@ -254,11 +268,13 @@ function ClosedPositionsTable({ positions }) {
                           ? `num ${p.realized_pnl === null ? tableStyles.muted : p.realized_pnl >= 0 ? tableStyles.positive : tableStyles.negative}`
                           : col.key === 'net_chain_pnl'
                             ? `num ${p.net_chain_pnl == null ? tableStyles.muted : p.net_chain_pnl >= 0 ? tableStyles.positive : tableStyles.negative}`
-                            : col.key === 'close_reason'
-                              ? (p.close_reason ? '' : tableStyles.muted)
-                              : col.key === 'ticker' || col.key === 'closed_date'
-                                ? ''
-                                : 'num'
+                            : col.key === 'net_group_pnl'
+                              ? `num ${p.net_group_pnl == null ? tableStyles.muted : p.net_group_pnl >= 0 ? tableStyles.positive : tableStyles.negative}`
+                              : col.key === 'close_reason'
+                                ? (p.close_reason ? '' : tableStyles.muted)
+                                : col.key === 'ticker' || col.key === 'closed_date'
+                                  ? ''
+                                  : 'num'
                       }
                     >
                       {col.render(p)}
@@ -347,6 +363,8 @@ export default function PnlHistoryPage() {
         only counts positions actually closed within this range, using their recorded close price.
         For a rolled position, that's just this ONE leg's own result - see <strong>Net Chain P&amp;L</strong>{' '}
         on rows that were rolled for the true total across every leg of that roll, start to finish.
+        Same idea for a double calendar's two legs, linked by a shared group tag instead of a roll -
+        see <strong>Net Group P&amp;L</strong> for the combined result across both.
       </p>
 
       <div className={styles.controls}>
