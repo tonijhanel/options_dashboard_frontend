@@ -64,9 +64,15 @@ function findBreakevens(curve, key) {
 /**
  * Runs docs/calendarchart.md's full calculation: both the expiry curve
  * and the current/today curve across a shared price range, breakevens,
- * max profit/loss (est), risk/reward, and the two probability stats -
- * plus the raw front/back leg values at front expiration for the
- * optional "Show legs" debug overlay.
+ * max profit/loss (est), risk/reward, and the two probability stats.
+ *
+ * (2026-08: this used to also expose the raw front/back leg values at
+ * front expiration for a "Show legs" debug overlay - it did its job,
+ * isolating the IV-units bug fixed in chain_service.get_quote_for_strike,
+ * and was removed afterward. The leg values live on a completely
+ * different dollar scale than the combined P&L, which squashed the main
+ * curve flat near zero on a shared y-axis - not worth a second y-axis
+ * for a debug-only view now that the bug it existed to catch is fixed.)
  *
  * sigmaFront/sigmaBack: each leg's own live IV (0.30 = 30%), typically
  * from the position's own current quote (`front_iv`/`back_iv`, already
@@ -143,9 +149,7 @@ export function evaluateCalendar({
   let worstPnl = Infinity;
   for (let i = 0; i < CURVE_POINTS; i++) {
     const price = spotMin + step * i;
-    const backValueAtFrontExp = legValue(optionType, price, strike, tRemainingAtFrontExpYears, adjustedSigmaBack);
-    const negIntrinsicShort = -intrinsic(optionType, price, strike);
-    const expiryPnl = (backValueAtFrontExp + negIntrinsicShort - netDebit) * 100 * qty;
+    const expiryPnl = expiryPnlAt(price);
     const currentPnl = currentPnlAt(price);
 
     curve.push({
@@ -155,10 +159,6 @@ export function evaluateCalendar({
       // expiry curve for the double-calendar combined view.
       pnl: Number(expiryPnl.toFixed(2)),
       currentPnl: Number(currentPnl.toFixed(2)),
-      // Debug "Show legs" overlay data - same scale (dollars) as the
-      // expiry curve so it's directly comparable on one y-axis.
-      negIntrinsicShort: Number((negIntrinsicShort * 100 * qty).toFixed(2)),
-      longLegValueAtFrontExp: Number((backValueAtFrontExp * 100 * qty).toFixed(2)),
     });
     if (expiryPnl > maxProfitEst) maxProfitEst = expiryPnl;
     if (expiryPnl < worstPnl) worstPnl = expiryPnl;

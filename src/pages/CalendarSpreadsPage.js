@@ -24,7 +24,7 @@ import styles from './CalendarSpreadsPage.module.css';
 // today, both legs still alive) - requires Black-Scholes throughout
 // (unlike BWB/vertical's pure intrinsic-value curves), since the back
 // leg still carries time value even at front expiration.
-function CalendarChartPanel({ row, ivShiftPct, showLegs }) {
+function CalendarChartPanel({ row, ivShiftPct }) {
   const result = evaluateCalendar({
     optionType: row.option_type,
     strike: row.strike,
@@ -90,7 +90,6 @@ function CalendarChartPanel({ row, ivShiftPct, showLegs }) {
         currentSpot={result.currentSpot}
         spotPnl={result.spotPnl}
         breakevens={result.breakevens}
-        showLegs={showLegs}
       />
     </div>
   );
@@ -352,7 +351,6 @@ export default function CalendarSpreadsPage() {
   const { data, error, loading, refetch } = useApiData(getActiveCalendars, 'activeCalendars');
   const [showAddForm, setShowAddForm] = useState(false);
   const [ivShiftPct, setIvShiftPct] = useState(0);
-  const [showLegs, setShowLegs] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
 
   const calendars = data?.calendars || [];
@@ -467,19 +465,13 @@ export default function CalendarSpreadsPage() {
                 </select>
               </div>
 
-              <div className={styles.chartControlsRow}>
-                <IVShiftSlider value={ivShiftPct} onChange={setIvShiftPct} />
-                <label className={styles.showLegsToggle}>
-                  <input type="checkbox" checked={showLegs} onChange={(e) => setShowLegs(e.target.checked)} />
-                  Show legs (debug)
-                </label>
-              </div>
+              <IVShiftSlider value={ivShiftPct} onChange={setIvShiftPct} />
 
               <div className={styles.detailCard}>
                 <h2 className={styles.chartTitle}>
                   P&amp;L Chart for {selected.ticker} {selected.strike} {selected.option_type} ({selected.front_expiration}/{selected.back_expiration})
                 </h2>
-                <CalendarChartPanel row={selected} ivShiftPct={ivShiftPct} showLegs={showLegs} />
+                <CalendarChartPanel row={selected} ivShiftPct={ivShiftPct} />
               </div>
 
               {combinedPartner && (
