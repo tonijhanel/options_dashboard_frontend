@@ -20,7 +20,9 @@
       "Bash(python -c \"import snaptrade_client\")",
       "Bash(python \"C:\\\\Users\\\\tonij\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--options-dashboard-frontend-frontend\\\\b26be7db-ec96-4e4e-a149-c274d86c037a\\\\scratchpad\\\\live_verify_ror_fix.py\")",
       "Bash(python -m pytest backend/tests/test_calendar_tracking_service.py backend/tests/test_snaptrade_client.py -q)",
-      "Bash(python \"C:\\\\Users\\\\tonij\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--options-dashboard-frontend-frontend\\\\b26be7db-ec96-4e4e-a149-c274d86c037a\\\\scratchpad\\\\log_amzn_calendars.py\")"
+      "Bash(python \"C:\\\\Users\\\\tonij\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--options-dashboard-frontend-frontend\\\\b26be7db-ec96-4e4e-a149-c274d86c037a\\\\scratchpad\\\\log_amzn_calendars.py\")",
+      "Bash(python -m py_compile services/chain_service.py)",
+      "Bash(python -m pytest backend/tests/test_chain_service.py -q)"
     ],
     "additionalDirectories": [
       "C:\\options_dashboard\\backend"
