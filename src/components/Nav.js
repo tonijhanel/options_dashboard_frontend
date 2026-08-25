@@ -30,6 +30,7 @@ const POSITION_SCANNER_ITEMS = [
 const ACTIVE_SPREADS_ITEMS = [
   { to: '/active-spreads', label: 'Vertical Spreads' },
   { to: '/bwb-trades', label: 'BWB Spreads' },
+  { to: '/calendar-spreads', label: 'Calendar Spreads' },
 ];
 
 // Standalone, chain-free pre-trade calculators (evaluate-only, no

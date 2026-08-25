@@ -1,0 +1,25 @@
+.wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: var(--space-5);
+}
+
+.label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.slider {
+  flex: 1;
+  max-width: 320px;
+  accent-color: var(--accent);
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+}

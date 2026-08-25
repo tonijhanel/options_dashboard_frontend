@@ -16,15 +16,27 @@ const TYPE_FILTERS = [
   { key: 'naked_put', label: 'Cash-Secured Puts' },
   { key: 'vertical_spread', label: 'Spreads' },
   { key: 'bwb_put', label: 'BWB' },
+  { key: 'calendar', label: 'Calendar' },
 ];
+
+function positionTypeLabel(positionType) {
+  if (positionType === 'vertical_spread') return 'Spread';
+  if (positionType === 'bwb_put') return 'BWB';
+  if (positionType === 'calendar') return 'Calendar';
+  return 'Naked Put';
+}
 
 const OPENED_COLUMNS = [
   { key: 'ticker', label: 'Ticker', alwaysVisible: true, sortable: true, getSortValue: (p) => p.ticker,
     render: (p) => <span className={styles.ticker}>{p.ticker}</span> },
   { key: 'position_type', label: 'Type', sortable: true, getSortValue: (p) => p.position_type,
-    render: (p) => (p.position_type === 'vertical_spread' ? 'Spread' : p.position_type === 'bwb_put' ? 'BWB' : 'Naked Put') },
+    render: (p) => positionTypeLabel(p.position_type) },
   { key: 'strike', label: 'Strike', sortable: true, getSortValue: (p) => p.short_strike ?? p.strike,
-    render: (p) => (p.position_type === 'vertical_spread' ? `${p.short_strike}/${p.long_strike}` : p.strike?.toFixed(2)) },
+    render: (p) => (
+      p.position_type === 'vertical_spread' ? `${p.short_strike}/${p.long_strike}`
+        : p.position_type === 'calendar' ? `${p.strike} (${p.expiration}/${p.calendar_back_expiration})`
+          : p.strike?.toFixed(2)
+    ) },
   { key: 'contracts', label: 'Contracts', sortable: true, getSortValue: (p) => p.contracts,
     render: (p) => p.contracts },
   { key: 'entry_price', label: 'Entry Price', sortable: true, getSortValue: (p) => p.entry_price,

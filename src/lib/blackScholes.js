@@ -39,6 +39,22 @@ export function bsPutPrice(S, K, T, r, sigma) {
   return K * Math.exp(-r * T) * normCdf(-d2) - S * normCdf(-d1);
 }
 
+/**
+ * Black-Scholes price of a European call. T in years. Same d1/d2 as
+ * bsPutPrice (put-call parity), added for the Calendar Spread evaluator
+ * (lib/calendarEval.js) - calendars can be either puts or calls, unlike
+ * the naked-put/BWB/credit-spread evaluators this file previously only
+ * needed to support.
+ */
+export function bsCallPrice(S, K, T, r, sigma) {
+  if (T <= 0 || sigma <= 0 || S <= 0 || K <= 0) {
+    return Math.max(S - K, 0);
+  }
+  const d1 = (Math.log(S / K) + (r + 0.5 * sigma ** 2) * T) / (sigma * Math.sqrt(T));
+  const d2 = d1 - sigma * Math.sqrt(T);
+  return S * normCdf(d1) - K * Math.exp(-r * T) * normCdf(d2);
+}
+
 /** Risk-neutral probability a put finishes in-the-money (assignment risk). */
 export function probItmAtExpiration(S, K, T, r, sigma) {
   if (T <= 0 || sigma <= 0 || S <= 0 || K <= 0) {

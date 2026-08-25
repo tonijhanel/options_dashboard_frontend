@@ -253,6 +253,30 @@ export function deleteBwbPosition(id) {
   });
 }
 
+export function getActiveCalendars() {
+  return request('/active-calendars');
+}
+
+export function createCalendarPosition(payload) {
+  return request('/calendar-positions', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function closeCalendarPosition(id, payload) {
+  return request(`/calendar-positions/${id}/close`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteCalendarPosition(id) {
+  return request(`/calendar-positions/${id}`, {
+    method: 'DELETE',
+  });
+}
+
 /** Positions manually excluded from /positions - see docs/supabase_migration_ignored_positions.sql. */
 export function getIgnoredPositions() {
   return request('/ignored-positions');
