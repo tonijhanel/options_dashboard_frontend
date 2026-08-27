@@ -6,7 +6,7 @@ import { pctOfMaxProfitCaptured, profitCaptureStatus } from '../lib/profitCaptur
 import { evaluateCreditSpread } from '../lib/creditSpreadEval';
 import { computeDTE } from '../lib/dte';
 import { LoadingView, ErrorView, EmptyView } from '../components/StateViews';
-import { formatCurrency } from '../components/SummaryBar';
+import SummaryBar, { formatCurrency } from '../components/SummaryBar';
 import PageHeader from '../components/PageHeader';
 import SortableHeader from '../components/SortableHeader';
 import ColumnPicker, { useColumnVisibility } from '../components/ColumnPicker';
@@ -275,6 +275,10 @@ export default function ActiveSpreadsPage() {
     }),
     [data, liquidityByPosition, profitTarget]
   );
+  const totalLivePnl = useMemo(
+    () => spreads.reduce((sum, r) => sum + (r.live_pnl || 0), 0),
+    [spreads]
+  );
   const { hidden, toggle, visibleColumns } = useColumnVisibility(COLUMNS, 'activeSpreadsTable');
   const { sorted, sortKey, direction, requestSort } = useSortableData(
     spreads,
@@ -303,6 +307,17 @@ export default function ActiveSpreadsPage() {
       </p>
 
       {error && <ErrorView message={error} onRetry={refetch} />}
+
+      <SummaryBar
+        items={[
+          {
+            label: 'Current Profit/Loss',
+            value: totalLivePnl,
+            sub: 'Live P&L for open vertical spreads only',
+            subTone: totalLivePnl >= 0 ? 'positive' : undefined,
+          },
+        ]}
+      />
 
       {sorted.length === 0 ? (
         <EmptyView message="No open vertical spreads right now." />

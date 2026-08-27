@@ -221,6 +221,8 @@ export default function PositionsPage() {
   // P&L across ALL FOUR open-position strategies, same reasoning/data
   // sources as totalCollateral below - was CSP-only before, which under-
   // reported real portfolio P&L once spreads/BWBs/calendars existed.
+  // cspCurrentPL is kept alongside it (not replaced) so the page can show
+  // both an all-strategies total and a CSP-only figure side by side.
   const portfolioTotals = useMemo(() => {
     const cspTotals = (data?.positions || []).reduce(
       (acc, p) => ({
@@ -234,6 +236,7 @@ export default function PositionsPage() {
     const calendarPL = (activeCalendars?.calendars || []).reduce((sum, c) => sum + (c.live_pnl || 0), 0);
     return {
       grossPremium: cspTotals.grossPremium,
+      cspCurrentPL: cspTotals.currentPL,
       currentPL: cspTotals.currentPL + spreadPL + bwbPL + calendarPL,
     };
   }, [data, activeSpreads, activeBwbs, activeCalendars]);
@@ -339,10 +342,16 @@ export default function PositionsPage() {
             subTone: 'neutral',
           },
           {
-            label: 'Current Profit/Loss',
+            label: 'Current Profit/Loss (All Positions)',
             value: portfolioTotals.currentPL,
             sub: 'Live P&L across CSPs, spreads, BWBs, and calendars combined',
             subTone: portfolioTotals.currentPL >= 0 ? 'positive' : undefined,
+          },
+          {
+            label: 'Current Profit/Loss (CSPs Only)',
+            value: portfolioTotals.cspCurrentPL,
+            sub: 'Live P&L for cash-secured puts only',
+            subTone: portfolioTotals.cspCurrentPL >= 0 ? 'positive' : undefined,
           },
           {
             label: 'Total Collateral Utilized',
