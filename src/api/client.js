@@ -277,6 +277,30 @@ export function deleteCalendarPosition(id) {
   });
 }
 
+export function getActiveCoveredCalls() {
+  return request('/active-covered-calls');
+}
+
+export function createCoveredCallPosition(payload) {
+  return request('/covered-call-positions', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function closeCoveredCallPosition(id, payload) {
+  return request(`/covered-call-positions/${id}/close`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteCoveredCallPosition(id) {
+  return request(`/covered-call-positions/${id}`, {
+    method: 'DELETE',
+  });
+}
+
 /** Positions manually excluded from /positions - see docs/supabase_migration_ignored_positions.sql. */
 export function getIgnoredPositions() {
   return request('/ignored-positions');

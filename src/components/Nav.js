@@ -52,6 +52,9 @@ export default function Nav() {
         <NavLink to="/tsp-scan" className={({ isActive }) => (isActive ? `${styles.link} ${styles.active}` : styles.link)}>
           Bulk Scan
         </NavLink>
+        <NavLink to="/covered-calls" className={({ isActive }) => (isActive ? `${styles.link} ${styles.active}` : styles.link)}>
+          Covered Calls
+        </NavLink>
         <NavDropdown label="Active Spreads" items={ACTIVE_SPREADS_ITEMS} />
         <NavDropdown label="Position Management" items={POSITION_MANAGEMENT_ITEMS} />
         <NavDropdown label="Position Scanner" items={POSITION_SCANNER_ITEMS} />

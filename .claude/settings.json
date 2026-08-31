@@ -24,7 +24,8 @@
       "Bash(python -m py_compile services/chain_service.py)",
       "Bash(python -m pytest backend/tests/test_chain_service.py -q)",
       "Bash(python -m py_compile services/position_log_service.py services/calendar_tracking_service.py)",
-      "Bash(python -c \"from services import calendar_tracking_service; print\\('import OK'\\)\")"
+      "Bash(python -c \"from services import calendar_tracking_service; print\\('import OK'\\)\")",
+      "Bash(python -c \"import backend.api.app\")"
     ],
     "additionalDirectories": [
       "C:\\options_dashboard\\backend"

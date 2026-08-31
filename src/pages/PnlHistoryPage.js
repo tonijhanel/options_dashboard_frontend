@@ -17,12 +17,14 @@ const TYPE_FILTERS = [
   { key: 'vertical_spread', label: 'Spreads' },
   { key: 'bwb_put', label: 'BWB' },
   { key: 'calendar', label: 'Calendar' },
+  { key: 'covered_call', label: 'Covered Calls' },
 ];
 
 function positionTypeLabel(positionType) {
   if (positionType === 'vertical_spread') return 'Spread';
   if (positionType === 'bwb_put') return 'BWB';
   if (positionType === 'calendar') return 'Calendar';
+  if (positionType === 'covered_call') return 'Covered Call';
   return 'Naked Put';
 }
 
@@ -35,7 +37,8 @@ const OPENED_COLUMNS = [
     render: (p) => (
       p.position_type === 'vertical_spread' ? `${p.short_strike}/${p.long_strike}`
         : p.position_type === 'calendar' ? `${p.strike} (${p.expiration}/${p.calendar_back_expiration})`
-          : p.strike?.toFixed(2)
+          : p.position_type === 'covered_call' ? `${p.strike} (${p.share_quantity} sh)`
+            : p.strike?.toFixed(2)
     ) },
   { key: 'contracts', label: 'Contracts', sortable: true, getSortValue: (p) => p.contracts,
     render: (p) => p.contracts },
