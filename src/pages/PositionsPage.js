@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { getPositions, getRealizedPnl, getHedgeStatus, getLiquidityStatus, getIgnoredPositions, ignorePosition, unignorePosition, getActiveBwbs, getActiveSpreads, getActiveCalendars, getMarketIndexes } from '../api/client';
+import { getPositions, getRealizedPnl, getHedgeStatus, getLiquidityStatus, getIgnoredPositions, ignorePosition, unignorePosition, getActiveBwbs, getActiveSpreads, getActiveCalendars, getActiveCoveredCalls, getMarketIndexes } from '../api/client';
 import { useApiData } from '../lib/useApiData';
 import { useSortableData } from '../lib/useSortableData';
 import { computeStatus } from '../lib/positionSignal';
@@ -163,6 +163,7 @@ export default function PositionsPage() {
   const { data: activeBwbs } = useApiData(getActiveBwbs, 'activeBwbs');
   const { data: activeSpreads } = useApiData(getActiveSpreads, 'activeSpreads');
   const { data: activeCalendars } = useApiData(getActiveCalendars, 'activeCalendars');
+  const { data: activeCoveredCalls } = useApiData(getActiveCoveredCalls, 'activeCoveredCalls');
   const { data: marketIndexes } = useApiData(getMarketIndexes, 'marketIndexes');
   const { getEntry: getNewsEntry } = useNewsSentiment();
 
@@ -234,12 +235,18 @@ export default function PositionsPage() {
     const spreadPL = (activeSpreads?.spreads || []).reduce((sum, s) => sum + (s.live_pnl || 0), 0);
     const bwbPL = (activeBwbs?.bwbs || []).reduce((sum, b) => sum + (b.live_pnl || 0), 0);
     const calendarPL = (activeCalendars?.calendars || []).reduce((sum, c) => sum + (c.live_pnl || 0), 0);
+    // docs/coveredcallupdate.md (LOCKED): this is a portfolio-level
+    // aggregate, so covered calls contribute Option P&L only - Share P&L
+    // (stock-price risk, not options performance) is deliberately
+    // excluded here, unlike the Covered Calls page's own per-position
+    // table, which shows Option/Share/Total P&L side by side.
+    const coveredCallPL = (activeCoveredCalls?.covered_calls || []).reduce((sum, c) => sum + (c.option_pl || 0), 0);
     return {
       grossPremium: cspTotals.grossPremium,
       cspCurrentPL: cspTotals.currentPL,
-      currentPL: cspTotals.currentPL + spreadPL + bwbPL + calendarPL,
+      currentPL: cspTotals.currentPL + spreadPL + bwbPL + calendarPL + coveredCallPL,
     };
-  }, [data, activeSpreads, activeBwbs, activeCalendars]);
+  }, [data, activeSpreads, activeBwbs, activeCalendars, activeCoveredCalls]);
 
   // Total capital at risk across ALL FOUR open-position strategies, not
   // just the CSPs this page itself manages - CSP collateral is strike x
@@ -344,7 +351,7 @@ export default function PositionsPage() {
           {
             label: 'Current Profit/Loss (All Positions)',
             value: portfolioTotals.currentPL,
-            sub: 'Live P&L across CSPs, spreads, BWBs, and calendars combined',
+            sub: 'Live P&L across CSPs, spreads, BWBs, calendars, and covered calls (option P&L only) combined',
             subTone: portfolioTotals.currentPL >= 0 ? 'positive' : undefined,
           },
           {
