@@ -289,8 +289,13 @@ export default function CoveredCallsPage() {
     })),
     [data, profitTarget]
   );
+  // docs/coveredcallupdate.md (LOCKED): this summary bar is an aggregate,
+  // not the per-position table below - it sums Option P&L only, excluding
+  // Share P&L (stock-price risk, not options performance). The table's
+  // own Option/Share/Total P&L columns are the one place all three stay
+  // visible side by side.
   const totalLivePnl = useMemo(
-    () => coveredCalls.reduce((sum, r) => sum + (r.total_pl || 0), 0),
+    () => coveredCalls.reduce((sum, r) => sum + (r.option_pl || 0), 0),
     [coveredCalls]
   );
   const { hidden, toggle, visibleColumns } = useColumnVisibility(COLUMNS, 'coveredCallsTable');
@@ -328,7 +333,7 @@ export default function CoveredCallsPage() {
           {
             label: 'Current Profit/Loss',
             value: totalLivePnl,
-            sub: 'Live P&L (option + share) for open covered calls only',
+            sub: 'Live option P&L for open covered calls only (excludes Share P&L - see table below for the per-position split)',
             subTone: totalLivePnl >= 0 ? 'positive' : undefined,
           },
         ]}
