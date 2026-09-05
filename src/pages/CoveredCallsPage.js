@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getActiveCoveredCalls, createCoveredCallPosition, closeCoveredCallPosition, deleteCoveredCallPosition } from '../api/client';
+import { getActiveCoveredCalls, createCoveredCallPosition, closeCoveredCallPosition, deleteCoveredCallPosition, getPositionLog } from '../api/client';
 import { useApiData } from '../lib/useApiData';
 import { useSortableData } from '../lib/useSortableData';
 import { computeStatus } from '../lib/coveredCallSignal';
 import { evaluateCoveredCall } from '../lib/coveredCallEval';
 import { computeDTE } from '../lib/dte';
+import { formatDate } from '../lib/formatDate';
 import { LoadingView, ErrorView, EmptyView } from '../components/StateViews';
 import SummaryBar, { formatCurrency } from '../components/SummaryBar';
 import PageHeader from '../components/PageHeader';
@@ -15,6 +16,113 @@ import ProfitTargetSlider from '../components/ProfitTargetSlider';
 import CoveredCallEvalChart from '../components/CoveredCallEvalChart';
 import tableStyles from '../components/Table.module.css';
 import styles from './CoveredCallsPage.module.css';
+
+const fetchClosedCoveredCalls = () => getPositionLog('closed');
+
+// docs/coveredcallupdate.md (LOCKED) still holds here - Option/Share/Total
+// P&L stay visible side by side, same as the open-positions table above,
+// since this IS "the per-position covered calls table," just scoped to
+// closed rows. GET /position-log already attaches option_pl/share_pl/
+// total_pl for closed covered_call rows (app.py's position_log_list), so
+// no new backend endpoint is needed - just filter the generic closed log
+// down to this position_type.
+const CLOSED_COLUMNS = [
+  { key: 'ticker', label: 'Ticker', alwaysVisible: true, sortable: true, getSortValue: (r) => r.ticker,
+    render: (r) => <span className={styles.ticker}>{r.ticker}</span> },
+  { key: 'strike', label: 'Call Strike', sortable: true, getSortValue: (r) => r.strike,
+    render: (r) => r.strike?.toFixed(2) },
+  { key: 'expiration', label: 'Expiration', sortable: true, getSortValue: (r) => r.expiration,
+    render: (r) => r.expiration },
+  { key: 'share_quantity', label: 'Shares', sortable: true, getSortValue: (r) => r.share_quantity,
+    render: (r) => r.share_quantity },
+  { key: 'share_cost_basis', label: 'Cost Basis', sortable: true, getSortValue: (r) => r.share_cost_basis,
+    render: (r) => (r.share_cost_basis != null ? r.share_cost_basis.toFixed(2) : '—') },
+  { key: 'entry_price', label: 'Call Premium', sortable: true, getSortValue: (r) => r.entry_price,
+    render: (r) => (r.entry_price != null ? r.entry_price.toFixed(2) : '—') },
+  { key: 'close_reason', label: 'Close Reason', sortable: true, getSortValue: (r) => r.close_reason || '',
+    render: (r) => r.close_reason || 'not recorded' },
+  { key: 'closed_date', label: 'Closed Date', sortable: true, getSortValue: (r) => r.closed_date,
+    render: (r) => formatDate(r.closed_date) },
+  { key: 'option_pl', label: 'Option P&L', sortable: true, getSortValue: (r) => r.option_pl,
+    render: (r) => (
+      r.option_pl != null
+        ? <span className={r.option_pl >= 0 ? tableStyles.positive : tableStyles.negative}>{formatCurrency(r.option_pl)}</span>
+        : '—'
+    ) },
+  { key: 'share_pl', label: 'Share P&L', sortable: true, getSortValue: (r) => r.share_pl,
+    render: (r) => (
+      r.share_pl != null
+        ? <span className={r.share_pl >= 0 ? tableStyles.positive : tableStyles.negative}>{formatCurrency(r.share_pl)}</span>
+        : '—'
+    ) },
+  { key: 'total_pl', label: 'Total P&L', sortable: true, getSortValue: (r) => r.total_pl,
+    render: (r) => (
+      r.total_pl != null
+        ? <span className={r.total_pl >= 0 ? tableStyles.positive : tableStyles.negative}>{formatCurrency(r.total_pl)}</span>
+        : '—'
+    ) },
+];
+
+const CLOSED_NON_NUMERIC_COLUMNS = ['ticker', 'expiration', 'close_reason', 'closed_date'];
+
+function ClosedCoveredCallsSection() {
+  const { data, error, loading, refetch } = useApiData(fetchClosedCoveredCalls, 'closedCoveredCallsLog');
+  const closedCoveredCalls = useMemo(
+    () => (data?.positions || []).filter((p) => p.position_type === 'covered_call'),
+    [data]
+  );
+  const { hidden, toggle, visibleColumns } = useColumnVisibility(CLOSED_COLUMNS, 'closedCoveredCallsTable');
+  const { sorted, sortKey, direction, requestSort } = useSortableData(
+    closedCoveredCalls,
+    (row, key) => CLOSED_COLUMNS.find((c) => c.key === key).getSortValue?.(row)
+  );
+
+  if (loading && !data) return <LoadingView label="Loading closed covered calls" />;
+  if (error && !data) return <ErrorView message={error} onRetry={refetch} />;
+
+  return (
+    <div className={styles.detailCard}>
+      <div className={styles.tableToolbar}>
+        <h2 className={styles.chartTitle}>Recently Closed</h2>
+        <ColumnPicker columns={CLOSED_COLUMNS} hidden={hidden} onToggle={toggle} />
+      </div>
+      {sorted.length === 0 ? (
+        <EmptyView message="No closed covered calls yet." />
+      ) : (
+        <div className={tableStyles.tableWrap}>
+          <table className={tableStyles.table}>
+            <thead>
+              <tr>
+                {visibleColumns.map((col) => (
+                  <SortableHeader
+                    key={col.key}
+                    label={col.label}
+                    columnKey={col.key}
+                    sortable={col.sortable}
+                    sortKey={sortKey}
+                    direction={direction}
+                    onSort={requestSort}
+                  />
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((r) => (
+                <tr key={r.id}>
+                  {visibleColumns.map((col) => (
+                    <td key={col.key} className={CLOSED_NON_NUMERIC_COLUMNS.includes(col.key) ? '' : 'num'}>
+                      {col.render(r)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // Reuses this already-open position's real strike/premium/cost-basis to
 // chart the at-expiration payoff, same idea as BwbTradesPage's
@@ -426,6 +534,8 @@ export default function CoveredCallsPage() {
           <p>{data._error}</p>
         </div>
       )}
+
+      <ClosedCoveredCallsSection />
     </div>
   );
 }
