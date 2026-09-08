@@ -14,6 +14,7 @@ import ColumnPicker, { useColumnVisibility } from '../components/ColumnPicker';
 import StatusBadge from '../components/StatusBadge';
 import ProfitTargetSlider from '../components/ProfitTargetSlider';
 import CoveredCallEvalChart from '../components/CoveredCallEvalChart';
+import CoveredCallKpiBanner from '../components/CoveredCallKpiBanner';
 import tableStyles from '../components/Table.module.css';
 import styles from './CoveredCallsPage.module.css';
 
@@ -165,6 +166,7 @@ function CoveredCallChartPanel({ row }) {
 }
 
 const STATUS_RANK = { 'take-profit': 0, assignment: 1, 'roll-hold': 2 };
+const PACKAGE_STATUS_RANK = { harvest: 0, 'assignment-lock': 1, defend: 2, 'hold-to-expire': 3, 'active-theta': 4 };
 
 // Manual entry only (no SnapTrade auto-pairing - docs/coveredcalls.md).
 // One short call leg + one stock leg per row.
@@ -373,14 +375,26 @@ const COLUMNS = [
         ? <span className={r.total_pl >= 0 ? tableStyles.positive : tableStyles.negative}>{formatCurrency(r.total_pl)}</span>
         : '—'
     ) },
+  // docs/coveredcalltable.md Package Valuation metrics
+  { key: 'max_profit', label: 'Max Profit', sortable: true, getSortValue: (r) => r.max_profit,
+    render: (r) => (r.max_profit != null ? formatCurrency(r.max_profit) : '—') },
+  { key: 'pct_max_captured', label: '% Max Captured', sortable: true, getSortValue: (r) => r.pct_max_captured,
+    render: (r) => (r.pct_max_captured != null ? `${r.pct_max_captured.toFixed(1)}%` : '—') },
+  { key: 'extrinsic_value_left', label: 'Extrinsic Value Left', sortable: true, getSortValue: (r) => r.extrinsic_value_left,
+    render: (r) => (r.extrinsic_value_left != null ? formatCurrency(r.extrinsic_value_left) : '—') },
+  { key: 'cushion_pct', label: 'Cushion to Strike', sortable: true, getSortValue: (r) => r.cushion_pct,
+    render: (r) => (r.cushion_pct != null ? `${r.cushion_pct.toFixed(1)}%` : '—') },
   { key: 'days_held', label: 'Days Held', sortable: true, getSortValue: (r) => r.days_held,
     render: (r) => r.days_held ?? '—' },
   { key: 'status', label: 'Status', sortable: true,
     getSortValue: (r) => STATUS_RANK[r.status?.tone] ?? 3,
     render: (r) => (r.status ? <StatusBadge status={r.status} /> : '—') },
+  { key: 'package_status', label: 'Package Status', sortable: true,
+    getSortValue: (r) => PACKAGE_STATUS_RANK[r.package_status?.tone] ?? 5,
+    render: (r) => (r.package_status ? <StatusBadge status={r.package_status} /> : '—') },
 ];
 
-const NON_NUMERIC_COLUMNS = ['ticker', 'expiration', 'status'];
+const NON_NUMERIC_COLUMNS = ['ticker', 'expiration', 'status', 'package_status'];
 
 export default function CoveredCallsPage() {
   const { data, error, loading, refetch } = useApiData(getActiveCoveredCalls, 'activeCoveredCalls');
@@ -406,6 +420,35 @@ export default function CoveredCallsPage() {
     () => coveredCalls.reduce((sum, r) => sum + (r.option_pl || 0), 0),
     [coveredCalls]
   );
+  // docs/coveredcalltable.md's KPI banner (below the table) is a
+  // DELIBERATE, scoped exception to the option-P&L-only rule above -
+  // Metric 3 (Open Package P&L) explicitly includes Share P&L, confirmed
+  // with the user when this doc's requirements conflicted with the
+  // earlier locked rule. Computed client-side over already-fetched rows,
+  // same pattern as totalLivePnl above and PositionsPage's portfolioTotals.
+  const packageKpis = useMemo(() => {
+    let totalCapitalDeployed = 0;
+    let grossPremiumCollected = 0;
+    let aggregateOpenPnl = 0;
+    let liquidityUnlockingFriday = 0;
+    for (const r of coveredCalls) {
+      const shares = r.share_quantity || 0;
+      totalCapitalDeployed += (r.share_cost_basis || 0) * shares;
+      grossPremiumCollected += (r.entry_price || 0) * shares;
+      if (r.option_pl != null && r.share_pl != null) {
+        aggregateOpenPnl += r.option_pl + r.share_pl;
+      }
+      if (r.spot_price != null && r.strike != null && r.spot_price >= r.strike && r.dte != null && r.dte <= 5) {
+        liquidityUnlockingFriday += r.strike * shares;
+      }
+    }
+    return {
+      totalCapitalDeployed: Math.round(totalCapitalDeployed * 100) / 100,
+      grossPremiumCollected: Math.round(grossPremiumCollected * 100) / 100,
+      aggregateOpenPnl: Math.round(aggregateOpenPnl * 100) / 100,
+      liquidityUnlockingFriday: Math.round(liquidityUnlockingFriday * 100) / 100,
+    };
+  }, [coveredCalls]);
   const { hidden, toggle, visibleColumns } = useColumnVisibility(COLUMNS, 'coveredCallsTable');
   const { sorted, sortKey, direction, requestSort } = useSortableData(
     coveredCalls,
@@ -496,6 +539,13 @@ export default function CoveredCallsPage() {
               </tbody>
             </table>
           </div>
+
+          <CoveredCallKpiBanner
+            totalCapitalDeployed={packageKpis.totalCapitalDeployed}
+            grossPremiumCollected={packageKpis.grossPremiumCollected}
+            aggregateOpenPnl={packageKpis.aggregateOpenPnl}
+            liquidityUnlockingFriday={packageKpis.liquidityUnlockingFriday}
+          />
 
           {selected && (
             <>

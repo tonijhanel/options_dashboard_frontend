@@ -37,6 +37,7 @@
 }
 
 .positive { color: var(--status-take-profit); }
+.negative { color: var(--negative); }
 .warning { color: var(--accent); }
 .info { color: var(--status-assignment); }
 .neutral { color: var(--text-tertiary); }

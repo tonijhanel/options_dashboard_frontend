@@ -22,3 +22,31 @@
   color: var(--status-assignment);
   background: var(--status-assignment-bg);
 }
+
+/* Package Valuation status badge (docs/coveredcalltable.md) - a second,
+   independent badge, tones deliberately separate from the ones above even
+   where colors coincide. */
+.harvest {
+  color: var(--status-harvest);
+  background: var(--status-harvest-bg);
+}
+
+.assignment-lock {
+  color: var(--status-roll-hold);
+  background: var(--status-roll-hold-bg);
+}
+
+.defend {
+  color: var(--status-defend);
+  background: var(--status-defend-bg);
+}
+
+.hold-to-expire {
+  color: var(--status-take-profit);
+  background: var(--status-take-profit-bg);
+}
+
+.active-theta {
+  color: var(--status-assignment);
+  background: var(--status-assignment-bg);
+}
