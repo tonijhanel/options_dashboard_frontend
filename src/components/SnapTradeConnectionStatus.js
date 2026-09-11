@@ -39,29 +39,49 @@ export default function SnapTradeConnectionStatus() {
 
   if (!connections) return null;
   const disabled = connections.filter((c) => c.disabled);
+  // is_degraded (2026-09) is a DIFFERENT signal from disabled - a
+  // brokerage-wide SnapTrade integration issue (e.g. Schwab having
+  // problems for everyone), not something wrong with this specific
+  // connection. Doesn't need reauthorizing, just waiting out - shown
+  // with its own warning (not negative/red) tone and separate copy so
+  // it doesn't send someone to reauthorize a connection that's actually fine.
+  const degraded = connections.filter((c) => c.is_degraded && !c.disabled);
 
   // Nothing wrong - don't clutter the nav with a permanent "all connected" widget.
-  if (disabled.length === 0) return null;
+  if (disabled.length === 0 && degraded.length === 0) return null;
+
+  const tone = disabled.length > 0 ? 'negative' : 'warning';
+  const label = disabled.length > 0
+    ? `${disabled.length} connection${disabled.length === 1 ? '' : 's'} disabled`
+    : `${degraded.length} brokerage${degraded.length === 1 ? '' : 's'} degraded`;
 
   return (
     <div className={styles.wrap} ref={ref}>
-      <button className={`${styles.trigger} ${styles.negative}`} onClick={() => setOpen((o) => !o)}>
+      <button className={`${styles.trigger} ${styles[tone]}`} onClick={() => setOpen((o) => !o)}>
         <span className={styles.dot} />
-        {disabled.length} connection{disabled.length === 1 ? '' : 's'} disabled
+        {label}
       </button>
 
       {open && (
         <div className={styles.panel}>
           <h3 className={styles.panelTitle}>SnapTrade Connection</h3>
-          <p className={styles.panelText}>
-            {disabled.map((c) => c.brokerage || c.name).join(', ')} {disabled.length === 1 ? 'has' : 'have'} gone
-            disabled at SnapTrade - usually an expired brokerage session or a changed password. Positions from
-            this connection have stopped refreshing, and closed positions may keep reappearing until it's fixed.
-          </p>
-          <p className={styles.panelText}>
-            Fix it by running <code>python -m backend.scripts.get_snaptrade_connection_url</code> from the
-            project root and reauthorizing through the printed Connection Portal link.
-          </p>
+          {disabled.length > 0 && (
+            <p className={styles.panelText}>
+              {disabled.map((c) => c.brokerage || c.name).join(', ')} {disabled.length === 1 ? 'has' : 'have'} gone
+              disabled at SnapTrade - usually an expired brokerage session or a changed password. Positions from
+              this connection have stopped refreshing, and closed positions may keep reappearing until it's fixed.
+              Fix it by running <code>python -m backend.scripts.get_snaptrade_connection_url</code> from the
+              project root and reauthorizing through the printed Connection Portal link.
+            </p>
+          )}
+          {degraded.length > 0 && (
+            <p className={styles.panelText}>
+              {degraded.map((c) => c.brokerage || c.name).join(', ')} {degraded.length === 1 ? 'is' : 'are'} currently
+              degraded at SnapTrade - a platform-wide issue with that brokerage's integration, not specific to your
+              connection. No action needed on your end; positions from this brokerage may load slowly or time out
+              until SnapTrade/the brokerage resolves it.
+            </p>
+          )}
         </div>
       )}
     </div>

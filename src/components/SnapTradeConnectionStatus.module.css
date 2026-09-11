@@ -25,6 +25,9 @@
 .negative { color: var(--negative); }
 .negative .dot { background: var(--negative); }
 
+.warning { color: var(--status-harvest); }
+.warning .dot { background: var(--status-harvest); }
+
 .panel {
   position: absolute;
   top: calc(100% + 6px);
