@@ -546,6 +546,12 @@ export default function PositionsPage() {
         </div>
       )}
 
+      {data._snaptrade_error && (
+        <div className={styles.excludedNote}>
+          <strong>Some positions may be stale or incomplete:</strong> {data._snaptrade_error}
+        </div>
+      )}
+
       {ignoredPositions?.results?.length > 0 && (
         <div className={styles.excludedNote}>
           <strong>Ignored ({ignoredPositions.results.length}):</strong> manually hidden from the table
