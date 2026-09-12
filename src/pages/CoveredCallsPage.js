@@ -250,11 +250,22 @@ function AddCoveredCallForm({ onCreated, onCancel }) {
   );
 }
 
+// Pre-fills from (strike - share_cost_basis) * share_quantity - the true
+// economics of an assignment, shares always sell at exactly the strike -
+// but stays editable, e.g. to account for a fee the pure formula doesn't
+// know about. Once submitted, this value becomes the source of truth for
+// the row's share P&L, not just a display convenience.
+function defaultSharePl(row) {
+  if (row.strike == null || row.share_cost_basis == null || row.share_quantity == null) return '';
+  return ((row.strike - row.share_cost_basis) * row.share_quantity).toFixed(2);
+}
+
 function CoveredCallRowActions({ row, onClosed, onDeleted }) {
   const [mode, setMode] = useState(null); // null | 'closing' | 'deleting'
   const [saving, setSaving] = useState(false);
   const [closeReason, setCloseReason] = useState('bought_to_close');
   const [closedPrice, setClosedPrice] = useState(row.call_mid != null ? row.call_mid.toFixed(2) : '');
+  const [sharePlOverride, setSharePlOverride] = useState(() => defaultSharePl(row));
   const [error, setError] = useState(null);
 
   async function handleClose() {
@@ -264,6 +275,9 @@ function CoveredCallRowActions({ row, onClosed, onDeleted }) {
       const payload = { close_reason: closeReason };
       if (closeReason === 'bought_to_close') {
         payload.closed_price = Number(closedPrice);
+      }
+      if (closeReason === 'called_away') {
+        payload.share_pl_override = Number(sharePlOverride);
       }
       await closeCoveredCallPosition(row.id, payload);
       onClosed();
@@ -325,6 +339,12 @@ function CoveredCallRowActions({ row, onClosed, onDeleted }) {
         <label>
           Close Price
           <input type="number" step="0.01" value={closedPrice} onChange={(e) => setClosedPrice(e.target.value)} className={styles.formInputSmall} />
+        </label>
+      )}
+      {closeReason === 'called_away' && (
+        <label>
+          Share P&amp;L
+          <input type="number" step="0.01" value={sharePlOverride} onChange={(e) => setSharePlOverride(e.target.value)} className={styles.formInputSmall} />
         </label>
       )}
       <button className={styles.actionButtonClose} onClick={handleClose} disabled={saving}>
