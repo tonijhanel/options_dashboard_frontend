@@ -250,14 +250,15 @@ function AddCoveredCallForm({ onCreated, onCancel }) {
   );
 }
 
-// Pre-fills from (strike - share_cost_basis) * share_quantity - the true
-// economics of an assignment, shares always sell at exactly the strike -
-// but stays editable, e.g. to account for a fee the pure formula doesn't
-// know about. Once submitted, this value becomes the source of truth for
-// the row's share P&L, not just a display convenience.
-function defaultSharePl(row) {
-  if (row.strike == null || row.share_cost_basis == null || row.share_quantity == null) return '';
-  return ((row.strike - row.share_cost_basis) * row.share_quantity).toFixed(2);
+// Entered as a PER-SHARE sale price (like the option leg's Close Price),
+// not a pre-computed dollar total - the app does the (price - cost basis)
+// * quantity math, same as the Called Away case already did implicitly
+// via the strike. Defaults to the strike for Called Away, since a real
+// assignment always sells at exactly the strike; blank/optional
+// otherwise (the shares may not have been sold at all).
+function computeSharePl(row, salePrice) {
+  if (salePrice === '' || row.share_cost_basis == null || row.share_quantity == null) return null;
+  return (Number(salePrice) - row.share_cost_basis) * row.share_quantity;
 }
 
 function CoveredCallRowActions({ row, onClosed, onDeleted }) {
@@ -271,15 +272,17 @@ function CoveredCallRowActions({ row, onClosed, onDeleted }) {
   // actually knowable; for bought_to_close/expired_worthless it stays
   // optional/blank unless the user separately sold the shares themselves
   // and wants to record that alongside the option close.
-  const [sharePlOverride, setSharePlOverride] = useState('');
+  const [sharePrice, setSharePrice] = useState('');
   const [error, setError] = useState(null);
 
   function handleReasonChange(newReason) {
     setCloseReason(newReason);
-    if (newReason === 'called_away' && sharePlOverride === '') {
-      setSharePlOverride(defaultSharePl(row));
+    if (newReason === 'called_away' && sharePrice === '' && row.strike != null) {
+      setSharePrice(row.strike.toFixed(2));
     }
   }
+
+  const sharePl = computeSharePl(row, sharePrice);
 
   async function handleClose() {
     setSaving(true);
@@ -289,8 +292,8 @@ function CoveredCallRowActions({ row, onClosed, onDeleted }) {
       if (closeReason === 'bought_to_close') {
         payload.closed_price = Number(closedPrice);
       }
-      if (sharePlOverride !== '') {
-        payload.share_pl_override = Number(sharePlOverride);
+      if (sharePl != null) {
+        payload.share_pl_override = Math.round(sharePl * 100) / 100;
       }
       await closeCoveredCallPosition(row.id, payload);
       onClosed();
@@ -355,13 +358,18 @@ function CoveredCallRowActions({ row, onClosed, onDeleted }) {
         </label>
       )}
       <label>
-        Share P&amp;L{closeReason !== 'called_away' && ' (optional)'}
+        Share Sale Price{closeReason !== 'called_away' && ' (optional)'}
         <input
-          type="number" step="0.01" value={sharePlOverride}
-          onChange={(e) => setSharePlOverride(e.target.value)}
+          type="number" step="0.01" value={sharePrice}
+          onChange={(e) => setSharePrice(e.target.value)}
           placeholder={closeReason !== 'called_away' ? 'only if shares were also sold' : ''}
           className={styles.formInputSmall}
         />
+        {sharePl != null && (
+          <span className={sharePl >= 0 ? tableStyles.positive : tableStyles.negative}>
+            {' '}= {formatCurrency(sharePl)}
+          </span>
+        )}
       </label>
       <button className={styles.actionButtonClose} onClick={handleClose} disabled={saving}>
         {saving ? 'Closing…' : 'Confirm Close'}

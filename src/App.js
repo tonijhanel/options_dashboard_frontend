@@ -16,6 +16,7 @@ import ActiveSpreadsPage from './pages/ActiveSpreadsPage';
 import BwbTradesPage from './pages/BwbTradesPage';
 import CalendarSpreadsPage from './pages/CalendarSpreadsPage';
 import CoveredCallsPage from './pages/CoveredCallsPage';
+import ManualTradesPage from './pages/ManualTradesPage';
 import RawPositionsPage from './pages/RawPositionsPage';
 import styles from './App.module.css';
 
@@ -41,6 +42,7 @@ export default function App() {
           <Route path="/bwb-trades" element={<BwbTradesPage />} />
           <Route path="/calendar-spreads" element={<CalendarSpreadsPage />} />
           <Route path="/covered-calls" element={<CoveredCallsPage />} />
+          <Route path="/manual-trades" element={<ManualTradesPage />} />
           <Route path="/raw-positions" element={<RawPositionsPage />} />
         </Routes>
       </main>

@@ -301,6 +301,19 @@ export function deleteCoveredCallPosition(id) {
   });
 }
 
+export function createManualTrade(payload) {
+  return request('/manual-trades', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteManualTrade(id) {
+  return request(`/manual-trades/${id}`, {
+    method: 'DELETE',
+  });
+}
+
 /** Positions manually excluded from /positions - see docs/supabase_migration_ignored_positions.sql. */
 export function getIgnoredPositions() {
   return request('/ignored-positions');

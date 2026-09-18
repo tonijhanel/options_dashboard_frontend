@@ -26,7 +26,9 @@
       "Bash(python -m py_compile services/position_log_service.py services/calendar_tracking_service.py)",
       "Bash(python -c \"from services import calendar_tracking_service; print\\('import OK'\\)\")",
       "Bash(python -c \"import backend.api.app\")",
-      "Bash(python -m py_compile backend/clients/db_client.py backend/services/position_log_service.py backend/api/app.py)"
+      "Bash(python -m py_compile backend/clients/db_client.py backend/services/position_log_service.py backend/api/app.py)",
+      "Bash(PYTHONIOENCODING=utf-8 \"/c/Users/tonij/.virtualenvs/DynamicCharts-eon2_Y0w/Scripts/python.exe\" -m pytest backend/tests/test_position_log_service.py -q)",
+      "Bash(PYTHONIOENCODING=utf-8 \"/c/Users/tonij/.virtualenvs/DynamicCharts-eon2_Y0w/Scripts/python.exe\" -m pytest backend/tests/ -q)"
     ],
     "additionalDirectories": [
       "C:\\options_dashboard\\backend"
