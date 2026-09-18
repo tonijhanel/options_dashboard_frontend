@@ -265,8 +265,21 @@ function CoveredCallRowActions({ row, onClosed, onDeleted }) {
   const [saving, setSaving] = useState(false);
   const [closeReason, setCloseReason] = useState('bought_to_close');
   const [closedPrice, setClosedPrice] = useState(row.call_mid != null ? row.call_mid.toFixed(2) : '');
-  const [sharePlOverride, setSharePlOverride] = useState(() => defaultSharePl(row));
+  // Starts blank - shares aren't necessarily sold at all (the common
+  // case: option closes, shares stay held). Only auto-fills a default
+  // when switching TO called_away, where the sale price (the strike) is
+  // actually knowable; for bought_to_close/expired_worthless it stays
+  // optional/blank unless the user separately sold the shares themselves
+  // and wants to record that alongside the option close.
+  const [sharePlOverride, setSharePlOverride] = useState('');
   const [error, setError] = useState(null);
+
+  function handleReasonChange(newReason) {
+    setCloseReason(newReason);
+    if (newReason === 'called_away' && sharePlOverride === '') {
+      setSharePlOverride(defaultSharePl(row));
+    }
+  }
 
   async function handleClose() {
     setSaving(true);
@@ -276,7 +289,7 @@ function CoveredCallRowActions({ row, onClosed, onDeleted }) {
       if (closeReason === 'bought_to_close') {
         payload.closed_price = Number(closedPrice);
       }
-      if (closeReason === 'called_away') {
+      if (sharePlOverride !== '') {
         payload.share_pl_override = Number(sharePlOverride);
       }
       await closeCoveredCallPosition(row.id, payload);
@@ -329,7 +342,7 @@ function CoveredCallRowActions({ row, onClosed, onDeleted }) {
     <div className={styles.inlinePanel}>
       <label>
         Reason
-        <select value={closeReason} onChange={(e) => setCloseReason(e.target.value)} className={styles.formSelect}>
+        <select value={closeReason} onChange={(e) => handleReasonChange(e.target.value)} className={styles.formSelect}>
           <option value="bought_to_close">Bought to Close</option>
           <option value="expired_worthless">Expired Worthless</option>
           <option value="called_away">Called Away</option>
@@ -341,12 +354,15 @@ function CoveredCallRowActions({ row, onClosed, onDeleted }) {
           <input type="number" step="0.01" value={closedPrice} onChange={(e) => setClosedPrice(e.target.value)} className={styles.formInputSmall} />
         </label>
       )}
-      {closeReason === 'called_away' && (
-        <label>
-          Share P&amp;L
-          <input type="number" step="0.01" value={sharePlOverride} onChange={(e) => setSharePlOverride(e.target.value)} className={styles.formInputSmall} />
-        </label>
-      )}
+      <label>
+        Share P&amp;L{closeReason !== 'called_away' && ' (optional)'}
+        <input
+          type="number" step="0.01" value={sharePlOverride}
+          onChange={(e) => setSharePlOverride(e.target.value)}
+          placeholder={closeReason !== 'called_away' ? 'only if shares were also sold' : ''}
+          className={styles.formInputSmall}
+        />
+      </label>
       <button className={styles.actionButtonClose} onClick={handleClose} disabled={saving}>
         {saving ? 'Closing…' : 'Confirm Close'}
       </button>
