@@ -3,7 +3,8 @@ import { getActiveSpreads, updatePositionLogEntry, getIgnoredPositions, ignorePo
 import { useApiData } from '../lib/useApiData';
 import { useSortableData } from '../lib/useSortableData';
 import { pctOfMaxProfitCaptured, profitCaptureStatus } from '../lib/profitCaptured';
-import { evaluateCreditSpread } from '../lib/creditSpreadEval';
+import { evaluateCreditSpread, verticalSpreadMaxLoss } from '../lib/creditSpreadEval';
+import { combineCurves, curveValueAt } from '../lib/calendarEval';
 import { computeDTE } from '../lib/dte';
 import { LoadingView, ErrorView, EmptyView } from '../components/StateViews';
 import SummaryBar, { formatCurrency } from '../components/SummaryBar';
@@ -14,6 +15,7 @@ import LiquidityBadge from '../components/LiquidityBadge';
 import StatusBadge from '../components/StatusBadge';
 import ProfitTargetSlider from '../components/ProfitTargetSlider';
 import CreditSpreadEvalChart from '../components/CreditSpreadEvalChart';
+import CombinedSpreadChart from '../components/CombinedSpreadChart';
 import tableStyles from '../components/Table.module.css';
 import styles from './ActiveSpreadsPage.module.css';
 
@@ -77,6 +79,74 @@ function SpreadChartPanel({ row }) {
         totalMaxProfit={result.totalMaxProfit}
         totalMaxLoss={result.totalMaxLoss}
         breakeven={result.breakeven}
+      />
+    </div>
+  );
+}
+
+// Iron condor combined view - shown ALONGSIDE (not instead of) each leg's
+// own individual SpreadChartPanel above, same relationship as the
+// Calendar Spreads page's CombinedCalendarChartPanel to its own two
+// single-leg panels. Sums the put spread's and call spread's independent
+// expiration curves onto one shared price range via lib/calendarEval's
+// combineCurves/curveValueAt - generic curve utilities, not calendar-
+// specific despite living in that file (CalendarSpreadsPage already
+// reuses them the same way for its own combined view).
+//
+// Combined max profit is just the sum of both legs' own max profit (spot
+// CAN sit between both short strikes, putting both legs at max profit
+// simultaneously) - but combined max loss is NOT the sum of both legs'
+// own max loss (spot can only land in ONE leg's loss zone at expiration,
+// never both), so it's computed the same way as ActiveSpreadsPage's own
+// row-grouping correction: the wider leg's width minus both legs'
+// combined credit, not each leg's max loss added together.
+function CombinedIronCondorChartPanel({ rowA, rowB }) {
+  const resultA = evaluateCreditSpread({
+    shortStrike: rowA.short_strike, longStrike: rowA.long_strike, netCreditPerShare: rowA.net_entry,
+    contracts: rowA.contracts, currentSpot: rowA.spot_price, dte: daysToExpiration(rowA.expiration),
+    optionType: rowA.option_type,
+  });
+  const resultB = evaluateCreditSpread({
+    shortStrike: rowB.short_strike, longStrike: rowB.long_strike, netCreditPerShare: rowB.net_entry,
+    contracts: rowB.contracts, currentSpot: rowB.spot_price, dte: daysToExpiration(rowB.expiration),
+    optionType: rowB.option_type,
+  });
+
+  if (!resultA.valid || !resultB.valid) {
+    return (
+      <div className={styles.chartPanel}>
+        <p className={styles.chartError}>Can't chart the combined view: {[...resultA.errors, ...resultB.errors].join(' ')}</p>
+      </div>
+    );
+  }
+
+  const putResult = resultA.optionType === 'PUT' ? resultA : resultB;
+  const callResult = resultA.optionType === 'CALL' ? resultA : resultB;
+
+  const combined = combineCurves(resultA.curve, resultB.curve);
+  const spot = rowA.spot_price || rowB.spot_price || null;
+  const spotPnl = spot ? curveValueAt(combined, spot) : null;
+  const combinedMaxProfit = resultA.totalMaxProfit + resultB.totalMaxProfit;
+  const combinedMaxLoss = Math.max(resultA.width, resultB.width) * 100 * resultA.contracts
+    - (resultA.netCreditPerShare + resultB.netCreditPerShare) * 100 * resultA.contracts;
+
+  return (
+    <div className={styles.chartPanel}>
+      <p className={styles.chartSummary}>
+        Combined Max Profit <strong className={tableStyles.positive}>{formatCurrency(combinedMaxProfit)}</strong>
+        {' · '}
+        Combined Max Loss <strong className={tableStyles.negative}>-{formatCurrency(combinedMaxLoss)}</strong>
+      </p>
+      <CombinedSpreadChart
+        curve={combined}
+        putShortStrike={putResult.shortStrike}
+        putLongStrike={putResult.longStrike}
+        callShortStrike={callResult.shortStrike}
+        callLongStrike={callResult.longStrike}
+        currentSpot={spot}
+        spotPnl={spotPnl}
+        totalMaxProfit={combinedMaxProfit}
+        totalMaxLoss={combinedMaxLoss}
       />
     </div>
   );
@@ -211,6 +281,17 @@ const COLUMNS = [
     render: (r) => (r.net_entry != null ? r.net_entry.toFixed(2) : '—') },
   { key: 'current_net_value', label: 'Current Net Value', sortable: true, getSortValue: (r) => r.current_net_value,
     render: (r) => (r.current_net_value != null ? r.current_net_value.toFixed(2) : '—') },
+  { key: 'max_loss', label: 'Max Loss', sortable: true, getSortValue: (r) => r.maxLoss,
+    render: (r) => (
+      r.maxLoss != null
+        ? (
+          <span className={tableStyles.negative}>
+            -{formatCurrency(r.maxLoss)}
+            {r.isIcPair && <span title="Combined with paired IC leg - spot can only hit one leg's loss zone at expiration"> (IC)</span>}
+          </span>
+        )
+        : '—'
+    ) },
   { key: 'live_pnl', label: 'Live P&L', sortable: true, getSortValue: (r) => r.live_pnl,
     render: (r) => (
       r.live_pnl != null
@@ -259,27 +340,80 @@ export default function ActiveSpreadsPage() {
     return map;
   }, [liquidityStatus]);
 
-  const spreads = useMemo(
-    () => (data?.spreads || []).map((r) => {
+  const spreads = useMemo(() => {
+    const rows = (data?.spreads || []).map((r) => {
       // A credit vertical has no separate max_profit field - the entry
       // credit itself IS the max profit, realized when current_net_value
       // decays to 0 (see lib/profitCaptured.js).
       const maxProfitDollars = r.net_entry != null ? r.net_entry * 100 * r.contracts : null;
       const pctCaptured = pctOfMaxProfitCaptured(r.live_pnl, maxProfitDollars);
+      const { totalMaxLoss } = verticalSpreadMaxLoss({
+        shortStrike: r.short_strike, longStrike: r.long_strike,
+        netCreditPerShare: r.net_entry, contracts: r.contracts,
+      });
       return {
         ...r,
         liquidity: liquidityByPosition[r.id],
         pctCaptured,
         hitProfitTarget: pctCaptured != null && pctCaptured >= profitTarget,
         status: profitCaptureStatus(pctCaptured, profitTarget),
+        maxLoss: totalMaxLoss,
+        isIcPair: false,
       };
-    }),
-    [data, liquidityByPosition, profitTarget]
-  );
+    });
+
+    // Iron condor correction: a put spread and a call spread sharing a
+    // strategy_group (SnapTrade auto-detection's own IC tag, see
+    // snaptrade_client.parse_short_put_positions) can never both hit max
+    // loss at once - spot lands in exactly one leg's loss zone at
+    // expiration - so summing each leg's own standalone maxLoss above
+    // double-counts the real risk. Replace both legs' maxLoss with the
+    // correct combined figure: the wider leg's width minus BOTH legs'
+    // combined credit. Only applied when exactly 2 rows share the group,
+    // they're opposite option_types (a real put+call pair, not a
+    // coincidental tag collision), and contract counts match - anything
+    // else falls back to each leg's standalone number rather than
+    // guessing at a combination that may not be apples-to-apples.
+    const byGroup = {};
+    rows.forEach((r) => {
+      if (r.strategy_group) (byGroup[r.strategy_group] ||= []).push(r);
+    });
+    Object.values(byGroup).forEach((group) => {
+      if (group.length !== 2) return;
+      const [a, b] = group;
+      if (a.option_type === b.option_type) return;
+      if ((a.contracts || 0) !== (b.contracts || 0)) return;
+      const widthA = Math.abs((a.short_strike || 0) - (a.long_strike || 0));
+      const widthB = Math.abs((b.short_strike || 0) - (b.long_strike || 0));
+      const combinedCredit = (a.net_entry || 0) + (b.net_entry || 0);
+      const combinedMaxLoss = (Math.max(widthA, widthB) - combinedCredit) * 100 * a.contracts;
+      a.maxLoss = combinedMaxLoss;
+      b.maxLoss = combinedMaxLoss;
+      a.isIcPair = true;
+      b.isIcPair = true;
+    });
+
+    return rows;
+  }, [data, liquidityByPosition, profitTarget]);
   const totalLivePnl = useMemo(
     () => spreads.reduce((sum, r) => sum + (r.live_pnl || 0), 0),
     [spreads]
   );
+  // Collateral Allocated - same tile as the CSP/Positions page's "Total
+  // Collateral Utilized", but scoped to vertical spreads. Sums each row's
+  // (IC-corrected) maxLoss, deduping paired IC legs down to ONE
+  // contribution per strategy_group rather than counting the same
+  // combined figure twice (both legs carry it for per-row display).
+  const totalCollateral = useMemo(() => {
+    const seenGroups = new Set();
+    return spreads.reduce((sum, r) => {
+      if (r.isIcPair) {
+        if (seenGroups.has(r.strategy_group)) return sum;
+        seenGroups.add(r.strategy_group);
+      }
+      return sum + (r.maxLoss || 0);
+    }, 0);
+  }, [spreads]);
   const { hidden, toggle, visibleColumns } = useColumnVisibility(COLUMNS, 'activeSpreadsTable');
   const { sorted, sortKey, direction, requestSort } = useSortableData(
     spreads,
@@ -293,6 +427,14 @@ export default function ActiveSpreadsPage() {
   }, [sorted, selectedId]);
 
   const selected = sorted.find((r) => r.id === selectedId);
+
+  // The selected row's iron-condor partner, if any - only when the
+  // strategy_group grouping above qualified it as a real put+call pair
+  // (isIcPair), not just any two rows that happen to share a tag.
+  const combinedPartner = useMemo(() => {
+    if (!selected?.isIcPair) return null;
+    return sorted.find((r) => r.id !== selected.id && r.strategy_group === selected.strategy_group) || null;
+  }, [selected, sorted]);
 
   if (loading && !data) return <LoadingView label="Loading active spreads" />;
   if (error && !data) return <ErrorView message={error} onRetry={refetch} />;
@@ -316,6 +458,11 @@ export default function ActiveSpreadsPage() {
             value: totalLivePnl,
             sub: 'Live P&L for open vertical spreads only',
             subTone: totalLivePnl >= 0 ? 'positive' : undefined,
+          },
+          {
+            label: 'Collateral Allocated',
+            value: totalCollateral,
+            sub: 'Max loss at risk across open vertical spreads - iron condor legs counted once',
           },
         ]}
       />
@@ -391,6 +538,15 @@ export default function ActiveSpreadsPage() {
                 </h2>
                 <SpreadChartPanel row={selected} />
               </div>
+
+              {combinedPartner && (
+                <div className={styles.detailCard}>
+                  <h2 className={styles.chartTitle}>
+                    Combined Iron Condor: {selected.strategy_group}
+                  </h2>
+                  <CombinedIronCondorChartPanel rowA={selected} rowB={combinedPartner} />
+                </div>
+              )}
             </>
           )}
         </>

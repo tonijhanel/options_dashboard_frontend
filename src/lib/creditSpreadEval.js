@@ -37,6 +37,28 @@ function pnlPerShareAt(optionType, spot, shortStrike, longStrike, netCreditPerSh
 }
 
 /**
+ * Standalone (single-leg) max loss for a vertical spread - width between
+ * strikes minus the credit collected, x100xcontracts. Split out from
+ * evaluateCreditSpread() because callers that just need this number for
+ * a table column (Active Spreads' Max Loss column, its Collateral
+ * Allocated tile) shouldn't have to satisfy evaluateCreditSpread's
+ * currentSpot/dte validation, which this figure doesn't depend on at all.
+ *
+ * "Standalone" matters for an iron condor's two legs specifically: each
+ * leg's own number here overstates that leg's REAL risk when it's half
+ * of a paired put+call spread sharing a strategy_group, since spot can
+ * only land in one leg's loss zone at expiration, never both - see
+ * ActiveSpreadsPage.js's combinedIronCondorMaxLoss for the corrected
+ * combined figure paired legs should actually display.
+ */
+export function verticalSpreadMaxLoss({ shortStrike, longStrike, netCreditPerShare, contracts }) {
+  const width = Math.abs((shortStrike || 0) - (longStrike || 0));
+  const qty = contracts && contracts > 0 ? contracts : 1;
+  const maxLossPerShare = width - (netCreditPerShare || 0);
+  return { width, maxLossPerShare, totalMaxLoss: maxLossPerShare * 100 * qty };
+}
+
+/**
  * Runs validation + the structural and probability-weighted calculations
  * from docs/credit_eval.md, plus the full expiration P&L curve for
  * charting. Returns { valid: false, errors } on bad input, or
