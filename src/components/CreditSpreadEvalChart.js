@@ -11,6 +11,11 @@ import {
 export default function CreditSpreadEvalChart({
   curve, shortStrike, longStrike, currentSpot, spotPnl, totalMaxProfit, totalMaxLoss, breakeven,
 }) {
+  // Label anchor by which strike is numerically lower, not by long/short
+  // identity - a put spread has long < short, a call spread has short <
+  // long, and anchoring the wrong direction pushes the label off the
+  // outer edge of the chart instead of inward toward the curve.
+  const longIsLower = longStrike < shortStrike;
   return (
     <ResponsiveContainer width="100%" height={420}>
       <ComposedChart data={curve} margin={{ top: 30, right: 30, left: 10, bottom: 10 }}>
@@ -40,9 +45,9 @@ export default function CreditSpreadEvalChart({
         />
 
         <ReferenceLine x={longStrike} stroke="var(--negative)" strokeDasharray="4 4"
-          label={{ value: `Long ${longStrike}`, position: 'insideBottomLeft', fill: 'var(--negative)', fontSize: 11 }} />
+          label={{ value: `Long ${longStrike}`, position: longIsLower ? 'insideBottomLeft' : 'insideBottomRight', fill: 'var(--negative)', fontSize: 11 }} />
         <ReferenceLine x={shortStrike} stroke="var(--positive)" strokeDasharray="4 4"
-          label={{ value: `Short ${shortStrike}`, position: 'insideBottomRight', fill: 'var(--positive)', fontSize: 11 }} />
+          label={{ value: `Short ${shortStrike}`, position: longIsLower ? 'insideBottomRight' : 'insideBottomLeft', fill: 'var(--positive)', fontSize: 11 }} />
 
         <ReferenceLine y={totalMaxProfit} stroke="var(--positive)" strokeDasharray="2 2"
           label={{ value: `Max Profit $${totalMaxProfit.toFixed(0)}`, position: 'insideTopLeft', fill: 'var(--positive)', fontSize: 11 }} />

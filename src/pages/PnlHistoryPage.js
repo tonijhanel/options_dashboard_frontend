@@ -469,6 +469,16 @@ export default function PnlHistoryPage() {
                   ? `${filtered.realized_pnl.missing_price_count} close(s) missing price - not included`
                   : `${filtered.realized_pnl.closed_count} position(s) closed in range`,
               },
+              // Manual trades (own dedicated table, not position_log) -
+              // a separate total, not blended into Realized P&L above or
+              // filtered by strategy type, since they're not one of this
+              // page's strategies at all.
+              {
+                label: 'Manual Trades',
+                value: data?.manual_trades_total || 0,
+                subTone: (data?.manual_trades_total || 0) >= 0 ? 'positive' : undefined,
+                sub: `${data?.manual_trades_count || 0} trade(s) closed in range`,
+              },
             ]}
           />
 

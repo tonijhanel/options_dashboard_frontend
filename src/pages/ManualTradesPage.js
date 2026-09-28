@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { getPositionLog, createManualTrade, updatePositionLogEntry, deleteManualTrade } from '../api/client';
+import { getManualTrades, createManualTrade, updateManualTrade, deleteManualTrade } from '../api/client';
 import { useApiData } from '../lib/useApiData';
 import { useSortableData } from '../lib/useSortableData';
 import { formatDate } from '../lib/formatDate';
@@ -11,16 +11,20 @@ import ColumnPicker, { useColumnVisibility } from '../components/ColumnPicker';
 import tableStyles from '../components/Table.module.css';
 import styles from './ManualTradesPage.module.css';
 
-const fetchManualTrades = () => getPositionLog('closed');
-
 // Standalone trades not tracked through this dashboard's structured
 // positions (no option chain, no live pricing) - just enough to keep a
-// complete P&L record. Counts toward P&L History and win-rate KPIs
-// (services/position_log_service.py's manual_trade branches), unlike
-// every other manually-entered strategy this session, which are
-// created OPEN and closed later - a manual trade is entered already
-// fully closed, in one shot, since it represents something that
-// already happened.
+// complete P&L record. Lives in its own dedicated `manual_trades` table,
+// not position_log (that table's schema assumes an option-position
+// shape - strike/expiration/contracts are NOT NULL there, which a
+// manual trade has no use for at all). Shown as its own total on the
+// P&L History page, not blended into that page's other totals or into
+// win-rate KPIs.
+//
+// Entered already fully closed, in one shot (entry_date, close_date,
+// and the final profit_loss all together) - unlike every other
+// manually-entered strategy this session, which are created OPEN and
+// closed later, since a manual trade represents something that already
+// happened.
 function AddManualTradeForm({ onCreated, onCancel }) {
   const today = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState({
@@ -83,20 +87,20 @@ function ManualTradeRowActions({ row, onSaved, onDeleted }) {
   const [ticker, setTicker] = useState(row.ticker || '');
   const [tradeType, setTradeType] = useState(row.trade_type || '');
   const [entryDate, setEntryDate] = useState(row.entry_date ? row.entry_date.slice(0, 10) : '');
-  const [closeDate, setCloseDate] = useState(row.closed_date ? row.closed_date.slice(0, 10) : '');
-  const [profitLoss, setProfitLoss] = useState(row.manual_profit_loss ?? '');
+  const [closeDate, setCloseDate] = useState(row.close_date ? row.close_date.slice(0, 10) : '');
+  const [profitLoss, setProfitLoss] = useState(row.profit_loss ?? '');
   const [error, setError] = useState(null);
 
   async function handleSave() {
     setSaving(true);
     setError(null);
     try {
-      await updatePositionLogEntry(row.id, {
+      await updateManualTrade(row.id, {
         ticker: ticker.trim().toUpperCase(),
         trade_type: tradeType.trim() || null,
         entry_date: entryDate,
-        closed_date: closeDate,
-        manual_profit_loss: Number(profitLoss),
+        close_date: closeDate,
+        profit_loss: Number(profitLoss),
       });
       onSaved();
     } catch (e) {
@@ -164,28 +168,25 @@ const COLUMNS = [
     render: (r) => r.trade_type || '—' },
   { key: 'entry_date', label: 'Entry Date', sortable: true, getSortValue: (r) => r.entry_date,
     render: (r) => formatDate(r.entry_date) },
-  { key: 'closed_date', label: 'Close Date', sortable: true, getSortValue: (r) => r.closed_date,
-    render: (r) => formatDate(r.closed_date) },
-  { key: 'manual_profit_loss', label: 'Profit/Loss', sortable: true, getSortValue: (r) => r.manual_profit_loss,
+  { key: 'close_date', label: 'Close Date', sortable: true, getSortValue: (r) => r.close_date,
+    render: (r) => formatDate(r.close_date) },
+  { key: 'profit_loss', label: 'Profit/Loss', sortable: true, getSortValue: (r) => r.profit_loss,
     render: (r) => (
-      r.manual_profit_loss != null
-        ? <span className={r.manual_profit_loss >= 0 ? tableStyles.positive : tableStyles.negative}>{formatCurrency(r.manual_profit_loss)}</span>
+      r.profit_loss != null
+        ? <span className={r.profit_loss >= 0 ? tableStyles.positive : tableStyles.negative}>{formatCurrency(r.profit_loss)}</span>
         : '—'
     ) },
 ];
 
-const NON_NUMERIC_COLUMNS = ['ticker', 'trade_type', 'entry_date', 'closed_date'];
+const NON_NUMERIC_COLUMNS = ['ticker', 'trade_type', 'entry_date', 'close_date'];
 
 export default function ManualTradesPage() {
-  const { data, error, loading, refetch } = useApiData(fetchManualTrades, 'manualTradesLog');
+  const { data, error, loading, refetch } = useApiData(getManualTrades, 'manualTrades');
   const [showAddForm, setShowAddForm] = useState(false);
 
-  const manualTrades = useMemo(
-    () => (data?.positions || []).filter((p) => p.position_type === 'manual_trade'),
-    [data]
-  );
+  const manualTrades = data?.trades || [];
   const totalPl = useMemo(
-    () => manualTrades.reduce((sum, r) => sum + (r.manual_profit_loss || 0), 0),
+    () => manualTrades.reduce((sum, r) => sum + (r.profit_loss || 0), 0),
     [manualTrades]
   );
   const { hidden, toggle, visibleColumns } = useColumnVisibility(COLUMNS, 'manualTradesTable');
@@ -204,8 +205,8 @@ export default function ManualTradesPage() {
 
       <p className={styles.explainer}>
         Trades not tracked through this dashboard's structured positions - logged here just to keep a
-        complete P&amp;L record. Counted in P&amp;L History and win-rate KPIs alongside every other
-        strategy.
+        complete P&amp;L record. Shown as its own total on the P&amp;L History page, separate from
+        every other strategy's totals.
       </p>
 
       {error && <ErrorView message={error} onRetry={refetch} />}

@@ -48,6 +48,7 @@ function SpreadChartPanel({ row }) {
     contracts: row.contracts,
     currentSpot: row.spot_price,
     dte: daysToExpiration(row.expiration),
+    optionType: row.option_type,
   });
 
   if (!result.valid) {

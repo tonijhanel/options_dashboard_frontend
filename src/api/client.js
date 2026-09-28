@@ -301,9 +301,20 @@ export function deleteCoveredCallPosition(id) {
   });
 }
 
+export function getManualTrades() {
+  return request('/manual-trades');
+}
+
 export function createManualTrade(payload) {
   return request('/manual-trades', {
     method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateManualTrade(id, payload) {
+  return request(`/manual-trades/${id}`, {
+    method: 'PATCH',
     body: JSON.stringify(payload),
   });
 }
