@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getActiveCoveredCalls, createCoveredCallPosition, closeCoveredCallPosition, deleteCoveredCallPosition, getPositionLog } from '../api/client';
+import { getActiveCoveredCalls, getCoveredCallLots, createCoveredCallPosition, closeCoveredCallPosition, deleteCoveredCallPosition, updatePositionLogEntry, getPositionLog } from '../api/client';
 import { useApiData } from '../lib/useApiData';
 import { useSortableData } from '../lib/useSortableData';
 import { computeStatus } from '../lib/coveredCallSignal';
@@ -132,7 +132,11 @@ function ClosedCoveredCallsSection() {
 function CoveredCallChartPanel({ row }) {
   const result = evaluateCoveredCall({
     strike: row.strike,
-    shareCostBasis: row.share_cost_basis,
+    // Prefer the freshly-recomputed lot cost basis (accounts for every
+    // prior cycle's premium on this share lot) over the row's own stored
+    // snapshot - falls back to share_cost_basis for a row with no lot
+    // tracking set up yet (see CoveredCallRowActions' "Set Up Lot" action).
+    shareCostBasis: row.true_net_cost_basis ?? row.share_cost_basis,
     entryPricePerShare: row.entry_price,
     shareQuantity: row.share_quantity,
     currentSpot: row.spot_price,
@@ -169,12 +173,26 @@ const STATUS_RANK = { 'take-profit': 0, assignment: 1, 'roll-hold': 2 };
 const PACKAGE_STATUS_RANK = { harvest: 0, 'assignment-lock': 1, defend: 2, 'hold-to-expire': 3, 'active-theta': 4 };
 
 // Manual entry only (no SnapTrade auto-pairing - docs/coveredcalls.md).
-// One short call leg + one stock leg per row.
+// One short call leg + one stock leg per row. Two modes:
+//   - New Lot: a fresh share purchase (or the first time backfilling an
+//     existing one into lot tracking) - takes Original Purchase Price
+//     and an optional lump "premium already collected" for backfilling,
+//     and computes share_cost_basis server-side rather than asking for
+//     it directly (see api/app.py's covered_call_positions_create).
+//   - Continue Lot: selling a new call against shares already tracked
+//     from a prior cycle (GET /covered-call-lots - shares held, no
+//     currently-open call) - only the new call's own fields are needed;
+//     ticker/shares/cost basis all come from the lot itself.
 function AddCoveredCallForm({ onCreated, onCancel }) {
+  const { data: lotsData } = useApiData(getCoveredCallLots, 'coveredCallLots');
+  const lots = lotsData?.lots || [];
+  const today = new Date().toISOString().slice(0, 10);
+  const [lotMode, setLotMode] = useState('new'); // 'new' | 'continue'
+  const [strategyGroup, setStrategyGroup] = useState('');
   const [form, setForm] = useState({
-    ticker: '', entryDate: new Date().toISOString().slice(0, 10), expiration: '', contracts: 1,
+    ticker: '', entryDate: today, expiration: '', contracts: 1,
     strike: '', entryPrice: '',
-    shareQuantity: '', shareCostBasis: '', shareEntryDate: new Date().toISOString().slice(0, 10),
+    shareQuantity: '', originalPurchasePrice: '', startingPremiumCollected: '0', shareEntryDate: today,
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -188,17 +206,24 @@ function AddCoveredCallForm({ onCreated, onCancel }) {
     setSaving(true);
     setError(null);
     try {
-      await createCoveredCallPosition({
-        ticker: form.ticker.trim().toUpperCase(),
+      const payload = {
         entry_date: form.entryDate,
         expiration: form.expiration,
         contracts: Number(form.contracts),
         strike: Number(form.strike),
         entry_price: Number(form.entryPrice),
-        share_quantity: Number(form.shareQuantity),
-        share_cost_basis: Number(form.shareCostBasis),
-        share_entry_date: form.shareEntryDate,
-      });
+      };
+      if (lotMode === 'continue') {
+        if (!strategyGroup) throw new Error('Select a lot to continue.');
+        payload.strategy_group = strategyGroup;
+      } else {
+        payload.ticker = form.ticker.trim().toUpperCase();
+        payload.share_quantity = Number(form.shareQuantity);
+        payload.original_purchase_price = Number(form.originalPurchasePrice);
+        payload.starting_premium_collected = Number(form.startingPremiumCollected || 0);
+        payload.share_entry_date = form.shareEntryDate;
+      }
+      await createCoveredCallPosition(payload);
       onCreated();
     } catch (e) {
       setError(e.message);
@@ -210,7 +235,52 @@ function AddCoveredCallForm({ onCreated, onCancel }) {
   return (
     <form onSubmit={handleSubmit} className={styles.addForm}>
       <div className={styles.addFormRow}>
-        <input placeholder="Ticker" value={form.ticker} onChange={(e) => update('ticker', e.target.value)} required className={styles.formInput} />
+        <label className={styles.legLabel}>
+          <input type="radio" name="lotMode" checked={lotMode === 'new'} onChange={() => setLotMode('new')} />
+          {' '}New Lot (new shares, or backfilling an existing position)
+        </label>
+        <label className={styles.legLabel}>
+          <input type="radio" name="lotMode" checked={lotMode === 'continue'} onChange={() => setLotMode('continue')} disabled={lots.length === 0} />
+          {' '}Continue Lot (sell a new call against shares you already hold){lots.length === 0 && ' - none available'}
+        </label>
+      </div>
+
+      {lotMode === 'continue' ? (
+        <div className={styles.addFormRow}>
+          <label className={styles.legLabel}>
+            Lot
+            <select value={strategyGroup} onChange={(e) => setStrategyGroup(e.target.value)} required className={styles.formInput}>
+              <option value="">Select a lot…</option>
+              {lots.map((lot) => (
+                <option key={lot.strategy_group} value={lot.strategy_group}>
+                  {lot.ticker} - {lot.share_quantity} sh - True Net Cost Basis ${lot.true_net_cost_basis?.toFixed(2)}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      ) : (
+        <div className={styles.addFormRow}>
+          <input placeholder="Ticker" value={form.ticker} onChange={(e) => update('ticker', e.target.value)} required className={styles.formInput} />
+          <label className={styles.legLabel}>
+            Shares
+            <div className={styles.legInputs}>
+              <input placeholder="Quantity" type="number" step="1" value={form.shareQuantity} onChange={(e) => update('shareQuantity', e.target.value)} required className={styles.formInputSmall} />
+              <input placeholder="Original Purchase Price" type="number" step="0.01" value={form.originalPurchasePrice} onChange={(e) => update('originalPurchasePrice', e.target.value)} required className={styles.formInputSmall} />
+            </div>
+          </label>
+          <label className={styles.legLabel}>
+            Shares Acquired
+            <input type="date" value={form.shareEntryDate} onChange={(e) => update('shareEntryDate', e.target.value)} required className={styles.formInput} />
+          </label>
+          <label className={styles.legLabel}>
+            Premium Already Collected
+            <input placeholder="0 if brand new" type="number" step="0.01" value={form.startingPremiumCollected} onChange={(e) => update('startingPremiumCollected', e.target.value)} className={styles.formInputSmall} />
+          </label>
+        </div>
+      )}
+
+      <div className={styles.addFormRow}>
         <label className={styles.legLabel}>
           Call Sold Date
           <input type="date" value={form.entryDate} onChange={(e) => update('entryDate', e.target.value)} required className={styles.formInput} />
@@ -220,25 +290,12 @@ function AddCoveredCallForm({ onCreated, onCancel }) {
           <input type="date" value={form.expiration} onChange={(e) => update('expiration', e.target.value)} required className={styles.formInput} />
         </label>
         <input placeholder="Contracts" type="number" min="1" value={form.contracts} onChange={(e) => update('contracts', e.target.value)} required className={styles.formInputSmall} />
-      </div>
-      <div className={styles.addFormRow}>
         <label className={styles.legLabel}>
           Short Call
           <div className={styles.legInputs}>
             <input placeholder="Strike" type="number" step="0.01" value={form.strike} onChange={(e) => update('strike', e.target.value)} required className={styles.formInputSmall} />
             <input placeholder="Premium" type="number" step="0.01" value={form.entryPrice} onChange={(e) => update('entryPrice', e.target.value)} required className={styles.formInputSmall} />
           </div>
-        </label>
-        <label className={styles.legLabel}>
-          Shares
-          <div className={styles.legInputs}>
-            <input placeholder="Quantity" type="number" step="1" value={form.shareQuantity} onChange={(e) => update('shareQuantity', e.target.value)} required className={styles.formInputSmall} />
-            <input placeholder="Cost Basis" type="number" step="0.01" value={form.shareCostBasis} onChange={(e) => update('shareCostBasis', e.target.value)} required className={styles.formInputSmall} />
-          </div>
-        </label>
-        <label className={styles.legLabel}>
-          Shares Acquired
-          <input type="date" value={form.shareEntryDate} onChange={(e) => update('shareEntryDate', e.target.value)} required className={styles.formInput} />
         </label>
       </div>
       <div className={styles.addFormRow}>
@@ -247,6 +304,58 @@ function AddCoveredCallForm({ onCreated, onCancel }) {
       </div>
       {error && <div className={styles.formError}>{error}</div>}
     </form>
+  );
+}
+
+// Backfill action for a covered call logged before lot tracking existed
+// (no strategy_group) - attaches it to a new lot by setting Original
+// Purchase Price + a lump "premium collected so far," same New Lot
+// inputs as AddCoveredCallForm, via the generic PATCH /position-log/<id>
+// route rather than a dedicated endpoint (this is a plain field edit on
+// an already-open row, not a create or a close).
+function SetUpLotForm({ row, onSaved, onCancel }) {
+  const [originalPurchasePrice, setOriginalPurchasePrice] = useState(row.share_cost_basis != null ? row.share_cost_basis.toFixed(2) : '');
+  const [startingPremiumCollected, setStartingPremiumCollected] = useState('0');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function handleSave() {
+    setSaving(true);
+    setError(null);
+    try {
+      const originalPrice = Number(originalPurchasePrice);
+      const startingPremium = Number(startingPremiumCollected || 0);
+      const shareEntryDate = row.share_entry_date ? row.share_entry_date.slice(0, 10) : new Date().toISOString().slice(0, 10);
+      await updatePositionLogEntry(row.id, {
+        strategy_group: `${row.ticker}-${shareEntryDate}`,
+        original_purchase_price: originalPrice,
+        starting_premium_collected: startingPremium,
+        share_cost_basis: Math.round((originalPrice - startingPremium) * 10000) / 10000,
+      });
+      onSaved();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className={styles.inlinePanel}>
+      <label>
+        Original Purchase Price
+        <input type="number" step="0.01" value={originalPurchasePrice} onChange={(e) => setOriginalPurchasePrice(e.target.value)} className={styles.formInputSmall} />
+      </label>
+      <label>
+        Premium Already Collected
+        <input type="number" step="0.01" value={startingPremiumCollected} onChange={(e) => setStartingPremiumCollected(e.target.value)} className={styles.formInputSmall} />
+      </label>
+      <button className={styles.actionButtonClose} onClick={handleSave} disabled={saving}>
+        {saving ? 'Saving…' : 'Save'}
+      </button>
+      <button className={styles.cancelButton} onClick={onCancel}>Cancel</button>
+      {error && <div className={styles.formError}>{error}</div>}
+    </div>
   );
 }
 
@@ -261,8 +370,8 @@ function computeSharePl(row, salePrice) {
   return (Number(salePrice) - row.share_cost_basis) * row.share_quantity;
 }
 
-function CoveredCallRowActions({ row, onClosed, onDeleted }) {
-  const [mode, setMode] = useState(null); // null | 'closing' | 'deleting'
+function CoveredCallRowActions({ row, onClosed, onDeleted, onLotSaved }) {
+  const [mode, setMode] = useState(null); // null | 'closing' | 'deleting' | 'lot-setup'
   const [saving, setSaving] = useState(false);
   const [closeReason, setCloseReason] = useState('bought_to_close');
   const [closedPrice, setClosedPrice] = useState(row.call_mid != null ? row.call_mid.toFixed(2) : '');
@@ -319,10 +428,17 @@ function CoveredCallRowActions({ row, onClosed, onDeleted }) {
     }
   }
 
+  if (mode === 'lot-setup') {
+    return <SetUpLotForm row={row} onSaved={() => { setMode(null); onLotSaved(); }} onCancel={() => setMode(null)} />;
+  }
+
   if (mode === null) {
     return (
       <div className={styles.rowActions}>
         <button className={styles.actionButtonClose} onClick={() => setMode('closing')}>Close</button>
+        {!row.strategy_group && (
+          <button className={styles.actionButtonClose} onClick={() => setMode('lot-setup')}>Set Up Lot</button>
+        )}
         <button className={styles.deleteButton} onClick={() => setMode('deleting')}>Delete</button>
       </div>
     );
@@ -395,8 +511,16 @@ const COLUMNS = [
     render: (r) => r.contracts },
   { key: 'share_quantity', label: 'Shares', sortable: true, getSortValue: (r) => r.share_quantity,
     render: (r) => r.share_quantity },
-  { key: 'share_cost_basis', label: 'Cost Basis', sortable: true, getSortValue: (r) => r.share_cost_basis,
-    render: (r) => (r.share_cost_basis != null ? r.share_cost_basis.toFixed(2) : '—') },
+  { key: 'original_purchase_price', label: 'Original Purchase Price', sortable: true, getSortValue: (r) => r.original_purchase_price,
+    render: (r) => (r.original_purchase_price != null ? r.original_purchase_price.toFixed(2) : '—') },
+  { key: 'cumulative_premium_collected', label: 'Cumulative Premium', sortable: true, getSortValue: (r) => r.cumulative_premium_collected,
+    render: (r) => (r.cumulative_premium_collected != null ? formatCurrency(r.cumulative_premium_collected * (r.share_quantity || 0)) : '—') },
+  { key: 'true_net_cost_basis', label: 'True Net Cost Basis', sortable: true,
+    getSortValue: (r) => r.true_net_cost_basis ?? r.share_cost_basis,
+    render: (r) => {
+      const basis = r.true_net_cost_basis ?? r.share_cost_basis;
+      return basis != null ? basis.toFixed(2) : '—';
+    } },
   { key: 'entry_price', label: 'Call Premium', sortable: true, getSortValue: (r) => r.entry_price,
     render: (r) => (r.entry_price != null ? r.entry_price.toFixed(2) : '—') },
   { key: 'call_mid', label: 'Call Mid', sortable: true, getSortValue: (r) => r.call_mid,
@@ -407,7 +531,7 @@ const COLUMNS = [
         ? <span className={r.option_pl >= 0 ? tableStyles.positive : tableStyles.negative}>{formatCurrency(r.option_pl)}</span>
         : '—'
     ) },
-  { key: 'share_pl', label: 'Share P&L', sortable: true, getSortValue: (r) => r.share_pl,
+  { key: 'share_pl', label: 'Floating P&L', sortable: true, getSortValue: (r) => r.share_pl,
     render: (r) => (
       r.share_pl != null
         ? <span className={r.share_pl >= 0 ? tableStyles.positive : tableStyles.negative}>{formatCurrency(r.share_pl)}</span>
@@ -420,7 +544,7 @@ const COLUMNS = [
         : '—'
     ) },
   // docs/coveredcalltable.md Package Valuation metrics
-  { key: 'max_profit', label: 'Max Profit', sortable: true, getSortValue: (r) => r.max_profit,
+  { key: 'max_profit', label: 'Net Profit if Assigned', sortable: true, getSortValue: (r) => r.max_profit,
     render: (r) => (r.max_profit != null ? formatCurrency(r.max_profit) : '—') },
   { key: 'pct_max_captured', label: '% Max Captured', sortable: true, getSortValue: (r) => r.pct_max_captured,
     render: (r) => (r.pct_max_captured != null ? `${r.pct_max_captured.toFixed(1)}%` : '—') },
@@ -576,7 +700,7 @@ export default function CoveredCallsPage() {
                       </td>
                     ))}
                     <td className={styles.actionsCell} onClick={(e) => e.stopPropagation()}>
-                      <CoveredCallRowActions row={r} onClosed={refetch} onDeleted={refetch} />
+                      <CoveredCallRowActions row={r} onClosed={refetch} onDeleted={refetch} onLotSaved={refetch} />
                     </td>
                   </tr>
                 ))}

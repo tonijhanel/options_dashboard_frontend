@@ -281,6 +281,10 @@ export function getActiveCoveredCalls() {
   return request('/active-covered-calls');
 }
 
+export function getCoveredCallLots() {
+  return request('/covered-call-lots');
+}
+
 export function createCoveredCallPosition(payload) {
   return request('/covered-call-positions', {
     method: 'POST',
