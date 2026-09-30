@@ -359,6 +359,59 @@ function SetUpLotForm({ row, onSaved, onCancel }) {
   );
 }
 
+// Corrects an EXISTING lot's header fields (Original Purchase Price /
+// Premium Collected So Far) - unlike SetUpLotForm above, this never
+// touches strategy_group (already set, and other cycles in the lot may
+// already reference it). Added after a real incident: SetUpLotForm's
+// button disappears once a lot exists, so a data-entry mistake on the
+// first try had no in-app way to correct - only a direct database edit,
+// which left share_cost_basis out of sync with the (separately
+// corrected) original_purchase_price/starting_premium_collected. This
+// recomputes and saves all three together so they can't drift apart.
+function EditLotForm({ row, onSaved, onCancel }) {
+  const [originalPurchasePrice, setOriginalPurchasePrice] = useState(row.original_purchase_price != null ? row.original_purchase_price.toFixed(2) : '');
+  const [startingPremiumCollected, setStartingPremiumCollected] = useState(row.starting_premium_collected != null ? row.starting_premium_collected.toFixed(2) : '0');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function handleSave() {
+    setSaving(true);
+    setError(null);
+    try {
+      const originalPrice = Number(originalPurchasePrice);
+      const startingPremium = Number(startingPremiumCollected || 0);
+      await updatePositionLogEntry(row.id, {
+        original_purchase_price: originalPrice,
+        starting_premium_collected: startingPremium,
+        share_cost_basis: Math.round((originalPrice - startingPremium) * 10000) / 10000,
+      });
+      onSaved();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className={styles.inlinePanel}>
+      <label>
+        Original Purchase Price
+        <input type="number" step="0.01" value={originalPurchasePrice} onChange={(e) => setOriginalPurchasePrice(e.target.value)} className={styles.formInputSmall} />
+      </label>
+      <label>
+        Premium Collected So Far
+        <input type="number" step="0.01" value={startingPremiumCollected} onChange={(e) => setStartingPremiumCollected(e.target.value)} className={styles.formInputSmall} />
+      </label>
+      <button className={styles.actionButtonClose} onClick={handleSave} disabled={saving}>
+        {saving ? 'Saving…' : 'Save'}
+      </button>
+      <button className={styles.cancelButton} onClick={onCancel}>Cancel</button>
+      {error && <div className={styles.formError}>{error}</div>}
+    </div>
+  );
+}
+
 // Entered as a PER-SHARE sale price (like the option leg's Close Price),
 // not a pre-computed dollar total - the app does the (price - cost basis)
 // * quantity math, same as the Called Away case already did implicitly
@@ -371,7 +424,7 @@ function computeSharePl(row, salePrice) {
 }
 
 function CoveredCallRowActions({ row, onClosed, onDeleted, onLotSaved }) {
-  const [mode, setMode] = useState(null); // null | 'closing' | 'deleting' | 'lot-setup'
+  const [mode, setMode] = useState(null); // null | 'closing' | 'deleting' | 'lot-setup' | 'lot-edit'
   const [saving, setSaving] = useState(false);
   const [closeReason, setCloseReason] = useState('bought_to_close');
   const [closedPrice, setClosedPrice] = useState(row.call_mid != null ? row.call_mid.toFixed(2) : '');
@@ -432,12 +485,19 @@ function CoveredCallRowActions({ row, onClosed, onDeleted, onLotSaved }) {
     return <SetUpLotForm row={row} onSaved={() => { setMode(null); onLotSaved(); }} onCancel={() => setMode(null)} />;
   }
 
+  if (mode === 'lot-edit') {
+    return <EditLotForm row={row} onSaved={() => { setMode(null); onLotSaved(); }} onCancel={() => setMode(null)} />;
+  }
+
   if (mode === null) {
     return (
       <div className={styles.rowActions}>
         <button className={styles.actionButtonClose} onClick={() => setMode('closing')}>Close</button>
         {!row.strategy_group && (
           <button className={styles.actionButtonClose} onClick={() => setMode('lot-setup')}>Set Up Lot</button>
+        )}
+        {row.strategy_group && row.original_purchase_price != null && (
+          <button className={styles.actionButtonClose} onClick={() => setMode('lot-edit')}>Edit Lot</button>
         )}
         <button className={styles.deleteButton} onClick={() => setMode('deleting')}>Delete</button>
       </div>
