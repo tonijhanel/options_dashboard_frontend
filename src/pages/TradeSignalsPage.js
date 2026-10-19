@@ -7,6 +7,8 @@ import PageHeader from '../components/PageHeader';
 import SignalPill from '../components/SignalPill';
 import SortableHeader from '../components/SortableHeader';
 import ColumnPicker, { useColumnVisibility } from '../components/ColumnPicker';
+import CalendarBadge from '../components/CalendarBadge';
+import { formatDate } from '../lib/formatDate';
 import tableStyles from '../components/Table.module.css';
 import styles from './TradeSignalsPage.module.css';
 
@@ -51,7 +53,18 @@ function renderPill(cell) {
 const COLUMNS = [
   { key: 'ticker', label: 'Ticker', alwaysVisible: true, sortable: true,
     getSortValue: (row) => row.ticker,
-    render: (row) => <span className={styles.ticker}>{row.ticker}</span> },
+    render: (row) => (
+      <span className={styles.ticker}>
+        {row.ticker}
+        <CalendarBadge nextEarningsDate={getIndicators(row)?.next_earnings_date} />
+      </span>
+    ) },
+  { key: 'next_earnings_date', label: 'Next Earnings', sortable: true,
+    getSortValue: (row) => getIndicators(row)?.next_earnings_date,
+    render: (row) => {
+      const d = getIndicators(row)?.next_earnings_date;
+      return d ? formatDate(d) : '—';
+    } },
   { key: 'spot_price', label: 'Spot', sortable: true,
     getSortValue: (row) => getIndicators(row)?.spot_price,
     render: (row) => fmtNum(getIndicators(row)?.spot_price) },
@@ -77,7 +90,7 @@ const COLUMNS = [
   })),
 ];
 
-const NON_NUMERIC_COLUMNS = ['ticker', 'CSP', 'BWB', 'CREDIT_SPREAD_PUT', 'CREDIT_SPREAD_CALL'];
+const NON_NUMERIC_COLUMNS = ['ticker', 'next_earnings_date', 'CSP', 'BWB', 'CREDIT_SPREAD_PUT', 'CREDIT_SPREAD_CALL'];
 
 function groupByTicker(results) {
   const byTicker = {};
