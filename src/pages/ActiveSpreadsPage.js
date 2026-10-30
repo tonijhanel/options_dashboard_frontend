@@ -260,9 +260,33 @@ function IgnoreButton({ row, onIgnored }) {
 
 // Same column-definition pattern as PositionsPage/TspScanPage - one source
 // of truth driving both the column picker and the sort logic.
+function rolledFromLabel(prev) {
+  const type = prev.position_type === 'bwb_put' ? ' BWB' : '';
+  return `${prev.ticker} ${prev.strike}${type} exp ${prev.expiration}`;
+}
+
 const COLUMNS = [
   { key: 'ticker', label: 'Ticker', alwaysVisible: true, sortable: true, getSortValue: (r) => r.ticker,
-    render: (r) => <span className={styles.ticker}>{r.ticker}</span> },
+    render: (r) => (
+      <>
+        <span className={styles.ticker}>{r.ticker}</span>
+        {/* Same rolled marker as PositionsPage - set once a closed
+            position's rolled_into_id points at this spread. */}
+        {r.carried_pnl != null && (
+          <span
+            className={r.carried_pnl < 0 ? tableStyles.negative : tableStyles.positive}
+            title={
+              `Rolled - carried ${r.carried_pnl < 0 ? 'loss' : 'gain'} of `
+              + `${formatCurrency(Math.abs(r.carried_pnl))} from `
+              + r.rolled_from.map(rolledFromLabel).join(', ')
+              + ' - Chain P&L, Chain Breakeven and Profit Captured include it.'
+            }
+          >
+            {' ↻'}
+          </span>
+        )}
+      </>
+    ) },
   { key: 'spot_price', label: 'Spot', sortable: true, getSortValue: (r) => r.spot_price,
     render: (r) => (r.spot_price != null ? r.spot_price.toFixed(2) : '—') },
   { key: 'short_strike', label: 'Short Strike', sortable: true, getSortValue: (r) => r.short_strike,
@@ -298,6 +322,26 @@ const COLUMNS = [
         ? <span className={r.live_pnl >= 0 ? tableStyles.positive : tableStyles.negative}>{formatCurrency(r.live_pnl)}</span>
         : '—'
     ) },
+  // Rolled spreads only: live P&L plus the realized P&L carried in from
+  // the position(s) rolled into it - what closing right now nets for the
+  // whole trade, start to finish.
+  { key: 'chain_pnl', label: 'Chain P&L', sortable: true, getSortValue: (r) => r.chainPnl,
+    render: (r) => (
+      r.chainPnl != null
+        ? <span className={r.chainPnl >= 0 ? tableStyles.positive : tableStyles.negative}>{formatCurrency(r.chainPnl)}</span>
+        : '—'
+    ) },
+  // Highest per-share net price this spread can be bought back at and
+  // still leave the whole roll chain at breakeven or better.
+  { key: 'chain_breakeven_close', label: 'Chain Breakeven Close', sortable: true,
+    getSortValue: (r) => r.chainBreakevenClose,
+    render: (r) => {
+      if (r.chainBreakevenClose == null) return '—';
+      if (r.chainBreakevenClose <= 0) {
+        return <span className={tableStyles.negative} title="Even a full max-profit expiration won't recover the carried loss">n/a</span>;
+      }
+      return `≤ ${r.chainBreakevenClose.toFixed(2)}`;
+    } },
   { key: 'days_held', label: 'Days Held', sortable: true, getSortValue: (r) => r.days_held,
     render: (r) => r.days_held ?? '—' },
   { key: 'roc', label: 'ROC', sortable: true, getSortValue: (r) => r.roc,
@@ -346,7 +390,18 @@ export default function ActiveSpreadsPage() {
       // credit itself IS the max profit, realized when current_net_value
       // decays to 0 (see lib/profitCaptured.js).
       const maxProfitDollars = r.net_entry != null ? r.net_entry * 100 * r.contracts : null;
-      const pctCaptured = pctOfMaxProfitCaptured(r.live_pnl, maxProfitDollars);
+      // Rolled spread: score profit captured against the whole roll
+      // chain (carried P&L included), same idea as PositionsPage's
+      // carried_pnl-adjusted take-profit - so the Take Profit badge
+      // can't fire while the chain as a whole is still behind.
+      const rolled = r.carried_pnl != null;
+      const chainPnl = rolled && r.live_pnl != null ? r.live_pnl + r.carried_pnl : null;
+      const chainBreakevenClose = rolled && r.net_entry != null
+        ? r.net_entry + r.carried_pnl / (100 * r.contracts)
+        : null;
+      const pctCaptured = rolled
+        ? pctOfMaxProfitCaptured(chainPnl, maxProfitDollars != null ? maxProfitDollars + r.carried_pnl : null)
+        : pctOfMaxProfitCaptured(r.live_pnl, maxProfitDollars);
       const { totalMaxLoss } = verticalSpreadMaxLoss({
         shortStrike: r.short_strike, longStrike: r.long_strike,
         netCreditPerShare: r.net_entry, contracts: r.contracts,
@@ -354,6 +409,8 @@ export default function ActiveSpreadsPage() {
       return {
         ...r,
         liquidity: liquidityByPosition[r.id],
+        chainPnl,
+        chainBreakevenClose,
         pctCaptured,
         hitProfitTarget: pctCaptured != null && pctCaptured >= profitTarget,
         status: profitCaptureStatus(pctCaptured, profitTarget),
