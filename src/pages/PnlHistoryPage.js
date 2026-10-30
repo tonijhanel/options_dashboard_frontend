@@ -20,6 +20,8 @@ const TYPE_FILTERS = [
   { key: 'covered_call', label: 'Covered Calls' },
 ];
 
+const INCLUDE_MANUAL_KEY = 'pnlHistoryIncludeManual';
+
 function positionTypeLabel(positionType) {
   if (positionType === 'vertical_spread') return 'Spread';
   if (positionType === 'bwb_put') return 'BWB';
@@ -110,7 +112,10 @@ const CLOSED_COLUMNS = [
 // selected date range. kpis is one bucket of GET /pnl-range's
 // package_kpis (already computed server-side per strategy, so this reads
 // straight off `data`, not the client-side-filtered `filtered` object).
-function PackageKpiCard({ kpis, strategyLabel }) {
+// manualTotal: manual-trade P&L to fold into Total Profit only (the
+// "Include manual trades" toggle) - win rate/avg winner/loser stay
+// package-only, since those are computed server-side per package.
+function PackageKpiCard({ kpis, strategyLabel, manualTotal = 0 }) {
   if (!kpis || kpis.total_trades === 0) {
     return (
       <div className={styles.kpiCard}>
@@ -121,6 +126,7 @@ function PackageKpiCard({ kpis, strategyLabel }) {
   }
 
   const winRateTone = kpis.win_rate_pct >= 50 ? tableStyles.positive : tableStyles.negative;
+  const totalProfit = kpis.total_profit + manualTotal;
 
   return (
     <div className={styles.kpiCard}>
@@ -144,9 +150,12 @@ function PackageKpiCard({ kpis, strategyLabel }) {
         </div>
         <div className={styles.kpiTile}>
           <div className={styles.kpiLabel}>Total Profit</div>
-          <div className={`${styles.kpiValue} ${kpis.total_profit >= 0 ? tableStyles.positive : tableStyles.negative}`}>
-            {formatCurrency(kpis.total_profit)}
+          <div className={`${styles.kpiValue} ${totalProfit >= 0 ? tableStyles.positive : tableStyles.negative}`}>
+            {formatCurrency(totalProfit)}
           </div>
+          {manualTotal !== 0 && (
+            <div className={styles.kpiNote}>incl. {formatCurrency(manualTotal)} manual</div>
+          )}
         </div>
         <div className={styles.kpiTile}>
           <div className={styles.kpiLabel}>Avg Winner</div>
@@ -297,6 +306,13 @@ export default function PnlHistoryPage() {
   const [range, setRange] = useState(() => getPresetRange('this_month'));
   const [activePreset, setActivePreset] = useState('this_month');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [includeManual, setIncludeManual] = useState(() => {
+    try {
+      return localStorage.getItem(INCLUDE_MANUAL_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -348,6 +364,21 @@ export default function PnlHistoryPage() {
       },
     };
   }, [data, typeFilter]);
+
+  function toggleIncludeManual(e) {
+    const next = e.target.checked;
+    setIncludeManual(next);
+    try {
+      localStorage.setItem(INCLUDE_MANUAL_KEY, String(next));
+    } catch {
+      // storage unavailable - toggle still works for this session
+    }
+  }
+
+  // Manual trades have no strategy type, so they're only folded in on the
+  // "All" filter - adding them to e.g. Spreads-only totals would mislead.
+  const manualTotal = data?.manual_trades_total || 0;
+  const manualApplied = includeManual && typeFilter === 'all' ? manualTotal : 0;
 
   function applyPreset(presetKey) {
     setActivePreset(presetKey);
@@ -428,6 +459,18 @@ export default function PnlHistoryPage() {
             {t.label}
           </button>
         ))}
+        <label
+          className={typeFilter === 'all' ? styles.manualToggle : styles.manualToggleDisabled}
+          title={typeFilter === 'all' ? undefined : 'Manual trades have no strategy type - only applies to "All"'}
+        >
+          <input
+            type="checkbox"
+            checked={includeManual}
+            onChange={toggleIncludeManual}
+            disabled={typeFilter !== 'all'}
+          />
+          Include manual trades
+        </label>
         {typeFilter === 'vertical_spread' && filtered && (() => {
           const allSpreadRows = [...filtered.premium_collected.positions, ...filtered.realized_pnl.positions];
           const hasLegacyRow = allSpreadRows.some(
@@ -463,16 +506,19 @@ export default function PnlHistoryPage() {
               },
               {
                 label: 'Realized P&L',
-                value: filtered.realized_pnl.realized_pnl,
-                subTone: filtered.realized_pnl.realized_pnl >= 0 ? 'positive' : undefined,
-                sub: filtered.realized_pnl.missing_price_count > 0
-                  ? `${filtered.realized_pnl.missing_price_count} close(s) missing price - not included`
-                  : `${filtered.realized_pnl.closed_count} position(s) closed in range`,
+                value: filtered.realized_pnl.realized_pnl + manualApplied,
+                subTone: filtered.realized_pnl.realized_pnl + manualApplied >= 0 ? 'positive' : undefined,
+                sub: [
+                  filtered.realized_pnl.missing_price_count > 0
+                    ? `${filtered.realized_pnl.missing_price_count} close(s) missing price - not included`
+                    : `${filtered.realized_pnl.closed_count} position(s) closed in range`,
+                  manualApplied !== 0 ? `incl. ${formatCurrency(manualApplied)} manual` : null,
+                ].filter(Boolean).join(' · '),
               },
               // Manual trades (own dedicated table, not position_log) -
-              // a separate total, not blended into Realized P&L above or
-              // filtered by strategy type, since they're not one of this
-              // page's strategies at all.
+              // always shown as their own tile; only blended into Realized
+              // P&L / Total Profit when the "Include manual trades" toggle
+              // is on and the strategy filter is "All".
               {
                 label: 'Manual Trades',
                 value: data?.manual_trades_total || 0,
@@ -486,6 +532,7 @@ export default function PnlHistoryPage() {
             <PackageKpiCard
               kpis={data.package_kpis[typeFilter]}
               strategyLabel={TYPE_FILTERS.find((t) => t.key === typeFilter)?.label}
+              manualTotal={manualApplied}
             />
           )}
 
